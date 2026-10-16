@@ -1,0 +1,37 @@
+{
+  "package": "@xzxzzx/bilibili-mcp",
+  "version": "1.14.1",
+  "tarball": "https://registry.npmjs.org/@xzxzzx/bilibili-mcp/-/bilibili-mcp-1.14.1.tgz",
+  "files": {
+    "bilibili/video-api.js": {
+      "pristine_sha256": "135cf5124d6f37bfa4e41875ec2e259758ea549b78518b87f424ecb353fc8414",
+      "pristine_size": 14208,
+      "patched_sha256": "c560017aa4eea6d3ad70c32dbbe294a8302eb47ff4a8f117bbd89aac9cee3e7a",
+      "patched_size": 14619
+    },
+    "bilibili/comments-api.js": {
+      "pristine_sha256": "b90a4abd9c9424fc71bac0f00f26c4799fc590ab27d931e873258dc90ed97ebe",
+      "pristine_size": 4763,
+      "patched_sha256": "88a5ebc9b6b622f388f9796b1f14a0e83ae5512ca626911ef3480582cac7d342",
+      "patched_size": 4927
+    },
+    "bilibili/comments.js": {
+      "pristine_sha256": "8aedbe6a3104d597421a88e71dd3fec5396469d27f4c738190fe7ad88b8bf39d",
+      "pristine_size": 9514,
+      "patched_sha256": "ca8f82f24bab51e4eed20fe6aa7e392c288d119adfa41881caac377955b158d8",
+      "patched_size": 10580
+    },
+    "server/tool-schemas.js": {
+      "pristine_sha256": "176e06643b5079be59a9fd0f529bb6572e46aa0a667a43434c57cdb768a33f10",
+      "pristine_size": 39548,
+      "patched_sha256": "4d357b66cda10013720a25a125d46ea4f71398fed75e80b85b8ab53332345cc3",
+      "patched_size": 39728
+    },
+    "utils/validation.js": {
+      "pristine_sha256": "0faf8463214fb73e452c582af7f705d958ac3e82a86d5de377bab2f1ba23bc43",
+      "pristine_size": 7856,
+      "patched_sha256": "39b67ff0ad95905a0a868147a441216da875ea4ec9e0a0d9c26755d154baae26",
+      "patched_size": 7859
+    }
+  }
+}

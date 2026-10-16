@@ -1,0 +1,233 @@
+/* ==========================================================================
+   视频分析报告 · 长文编辑轨样式表
+   依据：design-aesthetics-book / editorial-publishing（编辑/出版轨）
+   ---------------------------------------------------------------------------
+   核心决策：**全站单一宽度**（正文、表格、图、图注、定性卡同宽，不再有出血栏）
+   正文 19px / 行距 1.78 / 内容宽 780px ≈ 41 字每行（规范硬上限 42）
+   字体：正文思源宋体，标题·表格·图注思源黑体
+   用色：墨黑 #1F2227（禁纯黑）· 单一强调色赭红 #A63D2F · 禁渐变禁投影
+   ========================================================================== */
+:root{
+  --ink:#1F2227; --ink-2:#464C55; --mute:#6E7681; --faint:#9AA1A9;
+  --paper:#FCFBF8; --panel:#F4F2ED; --panel-2:#EDEAE3; --rule:#E0DCD4;
+  --accent:#A63D2F; --accent-soft:#F0E4E0;
+  --serif:"Noto Serif SC","Source Han Serif SC","Songti SC","SimSun",Georgia,serif;
+  --sans:"Noto Sans SC","Source Han Sans SC","PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  --w:780px;                       /* 全站唯一宽度 */
+  --gap-in:12px; --gap-out:30px;   /* 组内 / 组间，比值 2.5 */
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0; background:var(--paper); color:var(--ink);
+  font-family:var(--serif); font-size:19px; line-height:1.78;
+  -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
+}
+.page{width:var(--w); max-width:calc(100% - 40px); margin:0 auto; padding:0 0 96px}
+.page > *{min-width:0}
+.bleed{display:block}   /* 保留钩子；单一宽度下与正文同宽 */
+
+/* ---------- 报头 ---------- */
+.masthead{padding-top:44px}
+.kicker{font-family:var(--sans); font-size:13.5px; font-weight:600; letter-spacing:.2em;
+        text-transform:uppercase; color:var(--accent); margin:0 0 14px}
+h1{font-family:var(--sans); font-size:42px; font-weight:700; line-height:1.26;
+   letter-spacing:-.015em; margin:0 0 20px; text-wrap:balance}
+.standfirst{font-size:21px; line-height:1.7; color:var(--ink-2); margin:0 0 24px}
+.standfirst b{color:var(--ink); font-weight:600}
+.meta{font-family:var(--sans); font-size:14px; line-height:1.9; color:var(--mute);
+      border-top:1px solid var(--rule); border-bottom:1px solid var(--rule);
+      padding:13px 0; margin:0}
+.meta span{margin-right:22px; white-space:nowrap; display:inline-block}
+.meta b{color:var(--ink-2); font-weight:600; font-variant-numeric:tabular-nums}
+
+/* ---------- 定性区（一屏判断） ---------- */
+.verdict{background:var(--panel); padding:30px 34px; margin:38px 0 0;
+         display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:18px 38px}
+.vcell dt{font-family:var(--sans); font-size:12.5px; font-weight:600; letter-spacing:.14em;
+          color:var(--mute); text-transform:uppercase; margin:0 0 7px}
+.vcell dd{margin:0; font-size:17.5px; line-height:1.66}
+.vcell dd b{font-weight:600}
+.vcell-full{grid-column:1 / -1}
+.rate{display:inline-flex; align-items:center; gap:4px; font-family:var(--sans);
+      font-size:15px; color:var(--mute); vertical-align:-1px}
+.rate i{width:13px; height:13px; border:1px solid var(--faint); display:block}
+.rate i.on{background:var(--accent); border-color:var(--accent)}
+.rate em{font-style:normal; margin-left:9px; letter-spacing:0}
+
+/* ---------- 标题层级（章 1.9× / 节 1.5× / 小节 1.2×） ---------- */
+h2{font-family:var(--sans); font-size:36px; font-weight:700; line-height:1.32;
+   letter-spacing:-.012em; margin:82px 0 6px; padding-top:28px;
+   border-top:2px solid var(--ink)}
+h2 .no{display:block; font-size:17px; font-weight:600; color:var(--accent);
+       letter-spacing:.1em; font-variant-numeric:tabular-nums; margin-bottom:6px}
+h2 .sub{display:block; font-size:16px; font-weight:400; color:var(--mute); margin-top:10px;
+        letter-spacing:0; line-height:1.6}
+h3{font-family:var(--sans); font-size:28px; font-weight:600; line-height:1.42;
+   margin:52px 0 12px; letter-spacing:-.008em}
+h4{font-family:var(--sans); font-size:23px; font-weight:600; line-height:1.5; margin:38px 0 10px}
+h2 + p, h3 + p, h4 + p{margin-top:8px}
+
+/* ---------- 正文 ---------- */
+p{margin:0 0 20px}
+strong,b{font-weight:600}
+a{color:var(--accent); text-decoration:none; border-bottom:1px solid rgba(166,61,47,.3)}
+a:hover{border-bottom-color:var(--accent)}
+.num{font-variant-numeric:tabular-nums; font-feature-settings:"tnum"}
+mark{background:var(--accent-soft); color:var(--ink); padding:0 4px}
+
+/* ---------- 来源标记（单色梯度，不用第二种色相） ---------- */
+.src{font-family:var(--sans); font-size:12.5px; font-weight:600; letter-spacing:.08em;
+     padding:2px 9px; margin-right:9px; vertical-align:2px; white-space:nowrap}
+.src-v{background:var(--ink); color:var(--paper)}
+.src-c{background:var(--mute); color:#fff}
+.src-m{border:1px solid var(--faint); color:var(--mute)}
+
+/* ---------- 判定标签 ---------- */
+.verd{font-family:var(--sans); font-size:13.5px; font-weight:700; letter-spacing:.06em;
+      padding:3px 10px; white-space:nowrap}
+.verd-no{background:var(--accent); color:#fff}
+.verd-tight{background:var(--panel-2); color:var(--accent); border:1px solid var(--accent)}
+.verd-ok{background:var(--panel-2); color:var(--ink-2); border:1px solid var(--rule)}
+
+/* ---------- 时间戳 ---------- */
+.ts{font-family:var(--sans); font-size:14px; font-variant-numeric:tabular-nums;
+    color:var(--mute); border-bottom:1px dotted var(--faint); text-decoration:none;
+    padding:0 2px; white-space:nowrap}
+.ts:hover{color:var(--accent); border-bottom-color:var(--accent)}
+
+/* ---------- 表格 ---------- */
+.tw{margin:26px 0 30px}
+table{border-collapse:collapse; width:100%; font-family:var(--sans); font-size:15.5px;
+      line-height:1.68}
+th{text-align:left; font-weight:600; font-size:13px; letter-spacing:.06em; color:var(--mute);
+   text-transform:uppercase; border-bottom:1.5px solid var(--ink); padding:0 18px 10px 0}
+td{border-bottom:1px solid var(--rule); padding:13px 18px 13px 0; vertical-align:top}
+td:last-child,th:last-child{padding-right:0}
+tbody tr:hover{background:var(--panel)}
+td.n{font-variant-numeric:tabular-nums; white-space:nowrap}
+
+/* ---------- 图表 ---------- */
+figure{margin:34px 0 38px}
+figcaption{font-family:var(--sans); font-size:14px; line-height:1.72; color:var(--mute);
+           margin-top:14px}
+figcaption b{color:var(--ink-2); font-weight:600}
+
+/* 条形（无边框、无底色容器） */
+.bars{display:grid; gap:var(--gap-in)}
+.bar{display:grid; grid-template-columns:11em 1fr auto; gap:0 16px; align-items:center;
+     font-family:var(--sans); font-size:14.5px}
+.bar .k{color:var(--ink-2)}
+.track{height:16px; background:var(--panel-2); position:relative}
+.fill{height:100%; display:block}
+.fill-a{background:var(--accent)}
+.fill-b{background:var(--mute)}
+.fill-c{background:var(--faint)}
+.bar .v{font-variant-numeric:tabular-nums; color:var(--ink); font-weight:600;
+        min-width:3.8em; text-align:right}
+
+/* 小倍数图（N 簇 × 3 指标） */
+.small-multiples{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:30px 40px}
+.sm{display:grid; gap:7px; align-content:start;
+    border-top:2px solid var(--rule); padding-top:14px}
+.sm-name{font-family:var(--sans); font-size:16px; font-weight:600; line-height:1.4;
+         margin-bottom:2px}
+.sm-name em{font-style:normal; color:var(--accent); font-variant-numeric:tabular-nums}
+.sm-row{display:grid; grid-template-columns:3.8em 1fr 3.4em; gap:10px; align-items:center;
+        font-family:var(--sans); font-size:13.5px; color:var(--mute)}
+.sm-row .t{height:11px; background:var(--panel-2); position:relative}
+.sm-row .v{font-variant-numeric:tabular-nums; text-align:right}
+.sm-type{font-family:var(--sans); font-size:13.5px; color:var(--mute); margin-top:6px}
+.sm-type.hot{color:var(--accent); font-weight:600}
+
+/* ---------- 引言块 ---------- */
+.pull{border-left:3px solid var(--accent); padding:3px 0 3px 26px; margin:34px 0;
+      font-size:21px; line-height:1.68; color:var(--ink)}
+.pull cite{display:block; font-family:var(--sans); font-size:14px; font-style:normal;
+           color:var(--mute); margin-top:12px; letter-spacing:.02em}
+
+/* ---------- 折叠（打印时自动全展开） ---------- */
+details{border-top:1px solid var(--rule); margin:0}
+details:last-of-type{border-bottom:1px solid var(--rule)}
+summary{font-family:var(--sans); font-size:16.5px; font-weight:600; cursor:pointer;
+        padding:16px 0; list-style:none; display:flex; gap:14px; align-items:baseline}
+summary::-webkit-details-marker{display:none}
+summary::after{content:"展开"; font-size:13px; font-weight:400; color:var(--mute);
+               margin-left:auto; letter-spacing:.06em}
+details[open] summary::after{content:"收起"}
+summary .tag{font-size:12.5px; color:var(--accent); font-variant-numeric:tabular-nums}
+details .body{padding:0 0 26px}
+details .body p:last-child{margin-bottom:0}
+
+/* ---------- 提示条（局限声明等） ---------- */
+.caveat{background:var(--panel); padding:22px 26px; margin:28px 0; font-size:17px;
+        line-height:1.72; color:var(--ink-2)}
+.caveat b{color:var(--accent)}
+
+/* ---------- 页脚 ---------- */
+footer{margin-top:88px; padding-top:28px; border-top:2px solid var(--ink);
+       font-family:var(--sans); font-size:14px; color:var(--mute); line-height:1.9}
+
+/* ==========================================================================
+   打印：与屏幕同比例 —— 同一套样式、同一个宽度比例，PDF 只是换个纸张
+   A4 210mm − 左右各 25mm = 160mm 内容宽，11pt 正文 → 41 字/行（与屏幕一致）
+   ========================================================================== */
+@media print{
+  @page{size:A4; margin:18mm 25mm}
+  body{background:#fff; font-size:11pt; line-height:1.78}
+  .page{width:100%; max-width:none; padding:0}
+  .masthead{padding-top:0}
+
+  /* 标题不许落在页尾；块级不许被切断；长表格按行分页并重复表头 */
+  h1,h2,h3,h4,summary{break-after:avoid; page-break-after:avoid}
+  figure,.pull,.caveat,.bars,.sm,.vcell,details,blockquote,figcaption{
+    break-inside:avoid; page-break-inside:avoid}
+  .small-multiples{break-inside:auto; page-break-inside:auto}
+  .tw{break-inside:auto; page-break-inside:auto}
+  tr,td,th{break-inside:avoid; page-break-inside:avoid}
+  thead{display:table-header-group}
+
+  /* 折叠区全部展开 —— PDF 必须能看到 HTML 里被折叠的全部内容 */
+  details{border-color:#bbb}
+  details > .body{display:block !important}
+  details > summary{cursor:default}
+  summary::after{content:""}
+  summary::before{display:none}
+
+  /* 链接去装饰（打印件不能点，靠时间戳文字定位） */
+  a{color:var(--ink); border:0}
+  .ts{color:var(--ink-2); border-bottom:0}
+
+  /* 保留底色：条形图、来源标记、判定标签、定性卡 */
+  .verdict,.caveat,details[open]{-webkit-print-color-adjust:exact; print-color-adjust:exact}
+  .verdict{background:#F4F2ED !important}
+  .src-v{background:#1F2227 !important; color:#fff !important;
+    -webkit-print-color-adjust:exact; print-color-adjust:exact}
+  .src-c{background:#6E7681 !important; color:#fff !important;
+    -webkit-print-color-adjust:exact; print-color-adjust:exact}
+  .src-m{border-color:#9AA1A9 !important; color:#6E7681 !important}
+  .verd-no{background:#A63D2F !important; color:#fff !important;
+    -webkit-print-color-adjust:exact; print-color-adjust:exact}
+  .verd-tight{background:#EDEAE3 !important; color:#A63D2F !important;
+    -webkit-print-color-adjust:exact; print-color-adjust:exact}
+  .verd-ok{background:#EDEAE3 !important; color:#464C55 !important;
+    -webkit-print-color-adjust:exact; print-color-adjust:exact}
+  mark{background:#F0E4E0 !important; -webkit-print-color-adjust:exact;
+    print-color-adjust:exact}
+  .fill,.track,.rate i,.sm-row .t{-webkit-print-color-adjust:exact;
+    print-color-adjust:exact}
+  table{font-size:10pt}
+}
+/* 注意：必须限定 screen —— 打印时 A4 内容宽折算约 605px，不加限定会误用移动端布局 */
+@media screen and (max-width:860px){
+  body{font-size:17px}
+  h1{font-size:30px}
+  h2{font-size:26px}
+  h3{font-size:21px}
+  h4{font-size:19px}
+  .standfirst{font-size:18px}
+  .verdict{grid-template-columns:1fr; padding:22px}
+  .small-multiples{grid-template-columns:1fr; gap:24px}
+  .bar{grid-template-columns:1fr; gap:4px}
+  .pull{font-size:18px}
+}

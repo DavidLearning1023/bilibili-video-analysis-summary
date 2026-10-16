@@ -1,0 +1,12 @@
+# 测试残留与缓存
+out_kv/
+out/
+__pycache__/
+*.pyc
+
+# 编辑器 / 系统
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp

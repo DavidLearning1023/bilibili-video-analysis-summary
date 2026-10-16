@@ -1,0 +1,147 @@
+# 维护流程（Agent 专用）
+
+> 本 skill 由 Agent 维护，用户不直接改文件。这份文档规定"改什么、怎么改、改完怎么验证"。
+
+---
+
+## 一、日常自检（最先做的一件事）
+
+```bash
+python scripts/check_setup.py
+```
+
+输出解读：
+
+| 输出 | 含义 | 动作 |
+|---|---|---|
+| 三个补丁全 `[OK]`、凭据未过期、API 通 | 一切正常 | 直接干活 |
+| 某个补丁 `[FAIL]` | 补丁丢了 | `cd assets/mcp-patch && python apply-patch.py`，再让用户重启 |
+| 凭据 `[WARN] 过期` | 登录态失效 | 让用户重跑 `setup` 扫码 |
+| 找不到包 | MCP 没装或被移走 | 让用户重装，或改用通道 B（`fetch_video.py`） |
+
+**判断优先级**：先看补丁，再看凭据，最后看网络。三个补丁都在而工具仍失败 → 去 `troubleshooting.md` 查症状。
+
+---
+
+## 二、按需求改文件（速查）
+
+| 需求 | 改哪个文件 | 注意 |
+|---|---|---|
+| 改生成文档的结构/章节/要求 | `references/output-template.md` | 纯 markdown，改完即生效，**不用重启** |
+| 改输出命名 / 落盘位置 / 文档大块划分 | `references/output-template.md` 第一、二节 + `SKILL.md` 第 2 步提示、第 5 步 ①②③、硬性规则 6/7 | 多处必须同时改，否则会打架 |
+| 改 skill 名称 | 目录名 + `SKILL.md` 的 `name:` | **两者必须完全一致**，否则加载失败 |
+| 改触发时机 | `SKILL.md` 的 `description` + 「触发边界」一节 | 同时改，保持一致 |
+| 改取数逻辑 | `scripts/fetch_video.py` | 红线见下 |
+| 修 MCP 故障 | `references/troubleshooting.md` → `assets/mcp-patch/` | 打完补丁要重启 |
+| 升级 MCP 版本 | 见第四节 | 需重新适配补丁 |
+
+---
+
+## 三、改名完整步骤（容易漏）
+
+**约束**：`name` 字段只能用**小写字母、数字、连字符**（校验正则 `^[a-z0-9-]+$`），不能以连字符开头/结尾，不能有连续连字符。**中文名不可用**，必须用英文 slug。
+
+步骤：
+
+1. **改目录名**：`<你的 skills 目录>/<旧名>/` → `<新名>/`（各客户端 skills 目录位置见仓库根目录 `INSTALL.md` 对照表）
+2. **改 `SKILL.md` frontmatter 的 `name:`** —— 必须与目录名逐字符一致
+3. **全局搜索旧名**，替换所有出现的路径引用：
+   ```bash
+   # 在 skill 目录内搜（注意排除 CHANGELOG 里的历史记录，那是历史事实不用改）
+   grep -rn "<旧名>" . --include=*.md --include=*.py
+   ```
+4. **重新打包** zip（如果已分发给别人）
+5. **验证**：重跑 `check_setup.py` + 打包校验
+
+⚠️ **不要改 `CHANGELOG.md` 里的历史记录**——那记录的是"当时叫什么"，改了会失真。
+
+---
+
+## 四、MCP 版本升级流程
+
+```python
+# 第一步：查有没有新版（在对话里调用）
+mcp__bilibili-mcp__check_mcp_update
+```
+
+### 情况 A：新版已修好问题一/问题二 → 最理想
+
+1. 改客户端 MCP 配置里该包的版本号（配置文件位置见仓库根目录 `INSTALL.md` 对照表，如 `~/.workbuddy/mcp.json`、`~/.claude.json` 等）
+2. **不要**再跑 `apply-patch.py`（上游已修，补丁多余且会冲突）
+3. 让用户重启客户端
+4. 跑 `check_setup.py` 确认
+5. 在 `CHANGELOG.md` 记录：「升级到 X.Y.Z，上游已修 N 个问题，补丁退役」
+
+### 情况 B：新版没修 → 需要重新适配补丁
+
+**必须重新读新版源码，不能直接套用旧补丁文件。**
+
+1. 刷新 pristine：`python assets/mcp-patch/build-patch-index.py fetch <新版本号>` → 自动从 npm tarball 取全部目标文件
+2. **逐个对比新版源码**，定位对应函数，把修复重新写进 `patched/` 下对应文件：
+   - 问题一：`getVideoInfo()`（在 `dist/bilibili/video-api.js`）
+   - 问题二：`getComments()` 的分页循环（在 `dist/bilibili/comments.js`）+ 参数构建（`comments-api.js`）
+   - 问题三：`limit` 上限（`dist/utils/validation.js` + `dist/server/tool-schemas.js`）
+3. 重写索引：`python assets/mcp-patch/build-patch-index.py finalize <新版本号>`（会校验两份快照齐全且确有差异，并重算 sha256）
+4. 重跑验证（下节清单）
+5. 在 `CHANGELOG.md` 记录
+
+> **`apply-patch.py` 有版本守卫**：包版本不等于 `patch-index.json` 里的版本时会直接拒绝动手。这是刻意设计——避免旧补丁覆盖已修好的新版。
+
+---
+
+## 五、改动后的验证清单（必做）
+
+```bash
+S="<本 skill 所在目录>"   # 按实际路径替换；WorkBuddy 默认在 ~/.workbuddy/skills/，Claude Code 默认在 ~/.claude/skills/
+
+# 1) 补丁状态
+python $S/assets/mcp-patch/apply-patch.py --check
+
+# 2) 语法校验（改了 JS 补丁才需要）
+node --check <被改的 .js 文件>
+
+# 3) 前置自检
+python $S/scripts/check_setup.py
+
+# 4) 取数脚本冒烟测试（改了 fetch_video.py 才需要）
+python $S/scripts/fetch_video.py BV1r2ey6EEh5 --comments 20 --out /tmp/skilltest
+
+# 5) 打包校验
+python <skill-creator>/scripts/package_skill.py $S <输出目录>
+```
+
+**凡改动涉及 MCP 包或 `mcp.json`，都必须提醒用户重启客户端**——运行中的进程不会热加载。
+
+---
+
+## 六、CHANGELOG 记录规范
+
+每次改动追加一条，格式固定：
+
+```markdown
+## YYYY-MM-DD · <一句话说明>
+
+**类型**：修复 / 新增 / 重构 / 名称变更 / 升级适配
+
+**改了什么**：<文件 + 具体改动>
+
+**为什么**：<触发原因，比如"B站调整了接口"、"用户要求加一节">
+
+**怎么验证的**：<实测命令 + 结果，必须是实测而非"应该没问题">
+
+**遗留**：<已知未解决的问题；没有就写"无">
+```
+
+**要求**：验证方式必须写**实测证据**（命令 + 实际输出），不要写"理论可行"。这是这个知识库最有价值的部分——未来排查时能判断"这个结论还成不成立"。
+
+---
+
+## 七、架构决策记录（为什么这样设计）
+
+| 决策 | 理由 |
+|---|---|
+| **补丁而不是 fork** | 改动仅 2.3%，fork 会失去上游更新；补丁可一键还原 |
+| **整文件替换而非字符串替换** | 字符串替换依赖精确匹配，包一升级就失效；整文件替换 + 版本守卫更稳 |
+| **保留 pristine 原始文件** | 能一键还原成官方版本，回滚零风险 |
+| **自带 `fetch_video.py` 兜底** | MCP 全挂了（上游大改、对方不装）仍能完成分析；且能突破 MCP 的评论条数上限 |
+| **知识库写进 skill 而不是对话** | 对话会丢，skill 文件会留。未来维护者（包括未来的我）读文件即可恢复全部上下文 |

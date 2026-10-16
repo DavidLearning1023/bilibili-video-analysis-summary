@@ -1,0 +1,125 @@
+// B站 评论 API
+import { credentialManager } from "../utils/credentials.js";
+import { logger } from "../utils/logger.js";
+import { getBuvid } from "./fingerprint.js";
+import { fetchWithWBI, fetchWithoutWBI } from "./http.js";
+import { getVideoInfo } from "./video-api.js";
+/**
+ * 获取视频评论
+ */
+export async function getVideoComments(videoUrlOrBvid, page = 1, pageSize = 20, sort = 1, // 0按时间，1按热度
+includeReplies = true, cursor) {
+    const authHeaders = credentialManager.getAuthHeaders();
+    // 解析视频URL或bvid
+    let bvid;
+    let isBangumi = false;
+    if (videoUrlOrBvid.includes("bilibili.com")) {
+        // 从URL中提取bvid
+        const url = new URL(videoUrlOrBvid);
+        const pathParts = url.pathname.split("/").filter(Boolean);
+        if (pathParts.includes("bangumi")) {
+            isBangumi = true;
+        }
+        // 提取bvid
+        const bvidMatch = videoUrlOrBvid.match(/BV[0-9A-Za-z]{10}/);
+        if (!bvidMatch) {
+            throw new Error("无法从URL中提取BV号");
+        }
+        bvid = bvidMatch[0];
+    }
+    else {
+        // 直接使用bvid
+        bvid = videoUrlOrBvid;
+    }
+    // 获取视频信息，获取aid和cid
+    const videoInfo = await getVideoInfo(bvid);
+    const oid = videoInfo.aid || videoInfo.cid; // 优先使用aid作为oid
+    // 确定type
+    let type = "1"; // 默认视频类型
+    if (isBangumi) {
+        type = "2"; // 番剧类型
+    }
+    // 构建标准Referer
+    const baseVideoUrl = `https://www.bilibili.com/video/${bvid}/`;
+    // 构建评论API参数（fetchWithWBI 会自动添加 timestamp）
+    const params = {
+        oid: Number(oid),
+        type,
+        pn: page,
+        ps: Math.min(pageSize, 30),
+        sort: sort.toString(),
+        mode: sort === 0 ? "2" : "3",
+        ...(cursor === undefined || cursor === null ? {} : { next: cursor }),
+    };
+    logger.debug("Fetching video comments", {
+        bvid,
+        oid: Number(oid),
+        type,
+        page,
+        pageSize,
+        sort,
+        includeReplies,
+        isBangumi,
+    }, { type: "comments-api" });
+    // 构建自定义headers，包含标准Referer
+    const customHeaders = {
+        ...authHeaders,
+        Referer: baseVideoUrl,
+    };
+    // 构建普通评论API参数（无需WBI签名）
+    const plainParams = {
+        oid: Number(oid),
+        type: Number(type),
+        pn: page,
+        ps: Math.min(pageSize, 30),
+        sort,
+        mode: sort === 0 ? 2 : 3,
+        ...(cursor === undefined || cursor === null ? {} : { next: cursor }),
+    };
+    /**
+     * 构建带 buvid 指纹的 headers 并调用普通评论API
+     * buvid3/buvid4 用于规避 Bilibili 的 -352 风控验证
+     */
+    async function fetchCommentsWithFallback() {
+        const buvid = await getBuvid();
+        const buvidHeaders = { ...customHeaders };
+        if (buvid) {
+            const existingCookie = buvidHeaders["Cookie"] || "";
+            const buvidCookie = `buvid3=${buvid.buvid3}; buvid4=${buvid.buvid4}`;
+            buvidHeaders["Cookie"] = existingCookie
+                ? `${existingCookie}; ${buvidCookie}`
+                : buvidCookie;
+        }
+        return fetchWithoutWBI("/x/v2/reply/main", plainParams, buvidHeaders);
+    }
+    try {
+        // 优先尝试带WBI签名的评论API（需要有效的登录Cookie）
+        const wbiPath = "/x/v2/reply/wbi/main";
+        logger.debug("Trying WBI comments API", { path: wbiPath }, { type: "comments-api" });
+        const mainResult = (await fetchWithWBI(wbiPath, params, customHeaders));
+        // 如果WBI接口成功但返回空评论（可能是Cookie过期导致未登录），
+        // 则自动降级到无需鉴权的普通接口
+        if (mainResult &&
+            (!mainResult.replies || mainResult.replies.length === 0)) {
+            logger.debug("WBI comments API returned empty comments, falling back to plain comments API", { bvid, oid: Number(oid) }, { type: "comments-api" });
+            return await fetchCommentsWithFallback();
+        }
+        return mainResult;
+    }
+    catch (error) {
+        const errorMsg = error instanceof Error ? error.message : String(error);
+        logger.warn("WBI comments API failed, falling back to plain comments API", { error: errorMsg, bvid, oid: Number(oid) }, { type: "comments-api" });
+        // 降级到无需WBI签名的普通评论API（携带 buvid 以规避 -352 风控）
+        try {
+            return await fetchCommentsWithFallback();
+        }
+        catch (fallbackError) {
+            const fallbackErrorMsg = fallbackError instanceof Error
+                ? fallbackError.message
+                : String(fallbackError);
+            logger.error("Plain comments API also failed", { error: fallbackErrorMsg, bvid, oid: Number(oid) }, { type: "comments-api" });
+            throw fallbackError;
+        }
+    }
+}
+//# sourceMappingURL=comments-api.js.map
