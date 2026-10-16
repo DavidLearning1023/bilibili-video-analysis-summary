@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>20260920-《KVMem 16G 显存跑 27B 长上下文》分析总结</title>
+<style>
+/* ==========================================================================
+   视频分析报告 · 长文编辑轨样式表
+   依据：design-aesthetics-book / editorial-publishing（编辑/出版轨）
+   ---------------------------------------------------------------------------
+   核心决策：**全站单一宽度**（正文、表格、图、图注、定性卡同宽，不再有出血栏）
+   正文 19px / 行距 1.78 / 内容宽 780px ≈ 41 字每行（规范硬上限 42）
+   字体：正文思源宋体，标题·表格·图注思源黑体
+   用色：墨黑 #1F2227（禁纯黑）· 单一强调色赭红 #A63D2F · 禁渐变禁投影
+   ========================================================================== */
+:root{
+  --ink:#1F2227; --ink-2:#464C55; --mute:#6E7681; --faint:#9AA1A9;
+  --paper:#FCFBF8; --panel:#F4F2ED; --panel-2:#EDEAE3; --rule:#E0DCD4;
+  --accent:#A63D2F; --accent-soft:#F0E4E0;
+  --serif:"Noto Serif SC","Source Han Serif SC","Songti SC","SimSun",Georgia,serif;
+  --sans:"Noto Sans SC","Source Han Sans SC","PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  --w:780px;                       /* 全站唯一宽度 */
+  --gap-in:12px; --gap-out:30px;   /* 组内 / 组间，比值 2.5 */
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0; background:var(--paper); color:var(--ink);
+  font-family:var(--serif); font-size:19px; line-height:1.78;
+  -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
+}
+.page{width:var(--w); max-width:calc(100% - 40px); margin:0 auto; padding:0 0 96px}
+.page > *{min-width:0}
+.bleed{display:block}   /* 保留钩子；单一宽度下与正文同宽 */
+
+/* ---------- 报头 ---------- */
+.masthead{padding-top:44px}
+.kicker{font-family:var(--sans); font-size:13.5px; font-weight:600; letter-spacing:.2em;
+        text-transform:uppercase; color:var(--accent); margin:0 0 14px}
+h1{font-family:var(--sans); font-size:42px; font-weight:700; line-height:1.26;
+   letter-spacing:-.015em; margin:0 0 20px; text-wrap:balance}
+.standfirst{font-size:21px; line-height:1.7; color:var(--ink-2); margin:0 0 24px}
+.standfirst b{color:var(--ink); font-weight:600}
+.meta{font-family:var(--sans); font-size:14px; line-height:1.9; color:var(--mute);
+      border-top:1px solid var(--rule); border-bottom:1px solid var(--rule);
+      padding:13px 0; margin:0}
+.meta span{margin-right:22px; white-space:nowrap; display:inline-block}
+.meta b{color:var(--ink-2); font-weight:600; font-variant-numeric:tabular-nums}
+
+/* ---------- 定性区（一屏判断） ---------- */
+.verdict{background:var(--panel); padding:30px 34px; margin:38px 0 0;
+         display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:18px 38px}
+.vcell dt{font-family:var(--sans); font-size:12.5px; font-weight:600; letter-spacing:.14em;
+          color:var(--mute); text-transform:uppercase; margin:0 0 7px}
+.vcell dd{margin:0; font-size:17.5px; line-height:1.66}
+.vcell dd b{font-weight:600}
+.vcell-full{grid-column:1 / -1}
+.rate{display:inline-flex; align-items:center; gap:4px; font-family:var(--sans);
+      font-size:15px; color:var(--mute); vertical-align:-1px}
+.rate i{width:13px; height:13px; border:1px solid var(--faint); display:block}
+.rate i.on{background:var(--accent); border-color:var(--accent)}
+.rate em{font-style:normal; margin-left:9px; letter-spacing:0}
+
+/* ---------- 标题层级（章 1.9× / 节 1.5× / 小节 1.2×） ---------- */
+h2{font-family:var(--sans); font-size:36px; font-weight:700; line-height:1.32;
+   letter-spacing:-.012em; margin:82px 0 6px; padding-top:28px;
+   border-top:2px solid var(--ink)}
+h2 .no{display:block; font-size:17px; font-weight:600; color:var(--accent);
+       letter-spacing:.1em; font-variant-numeric:tabular-nums; margin-bottom:6px}
+h2 .sub{display:block; font-size:16px; font-weight:400; color:var(--mute); margin-top:10px;
+        letter-spacing:0; line-height:1.6}
+h3{font-family:var(--sans); font-size:28px; font-weight:600; line-height:1.42;
+   margin:52px 0 12px; letter-spacing:-.008em}
+h4{font-family:var(--sans); font-size:23px; font-weight:600; line-height:1.5; margin:38px 0 10px}
+h2 + p, h3 + p, h4 + p{margin-top:8px}
+
+/* ---------- 正文 ---------- */
+p{margin:0 0 20px}
+strong,b{font-weight:600}
+a{color:var(--accent); text-decoration:none; border-bottom:1px solid rgba(166,61,47,.3)}
+a:hover{border-bottom-color:var(--accent)}
+.num{font-variant-numeric:tabular-nums; font-feature-settings:"tnum"}
+mark{background:var(--accent-soft); color:var(--ink); padding:0 4px}
+
+/* ---------- 来源标记（单色梯度，不用第二种色相） ---------- */
+.src{font-family:var(--sans); font-size:12.5px; font-weight:600; letter-spacing:.08em;
+     padding:2px 9px; margin-right:9px; vertical-align:2px; white-space:nowrap}
+.src-v{background:var(--ink); color:var(--paper)}
+.src-c{background:var(--mute); color:#fff}
+.src-m{border:1px solid var(--faint); color:var(--mute)}
+
+/* ---------- 判定标签 ---------- */
+.verd{font-family:var(--sans); font-size:13.5px; font-weight:700; letter-spacing:.06em;
+      padding:3px 10px; white-space:nowrap}
+.verd-no{background:var(--accent); color:#fff}
+.verd-tight{background:var(--panel-2); color:var(--accent); border:1px solid var(--accent)}
+.verd-ok{background:var(--panel-2); color:var(--ink-2); border:1px solid var(--rule)}
+
+/* ---------- 时间戳 ---------- */
+.ts{font-family:var(--sans); font-size:14px; font-variant-numeric:tabular-nums;
+    color:var(--mute); border-bottom:1px dotted var(--faint); text-decoration:none;
+    padding:0 2px; white-space:nowrap}
+.ts:hover{color:var(--accent); border-bottom-color:var(--accent)}
+
+/* ---------- 表格 ---------- */
+.tw{margin:26px 0 30px}
+table{border-collapse:collapse; width:100%; font-family:var(--sans); font-size:15.5px;
+      line-height:1.68}
+th{text-align:left; font-weight:600; font-size:13px; letter-spacing:.06em; color:var(--mute);
+   text-transform:uppercase; border-bottom:1.5px solid var(--ink); padding:0 18px 10px 0}
+td{border-bottom:1px solid var(--rule); padding:13px 18px 13px 0; vertical-align:top}
+td:last-child,th:last-child{padding-right:0}
+tbody tr:hover{background:var(--panel)}
+td.n{font-variant-numeric:tabular-nums; white-space:nowrap}
+
+/* ---------- 图表 ---------- */
+figure{margin:34px 0 38px}
+figcaption{font-family:var(--sans); font-size:14px; line-height:1.72; color:var(--mute);
+           margin-top:14px}
+figcaption b{color:var(--ink-2); font-weight:600}
+
+/* 条形（无边框、无底色容器） */
+.bars{display:grid; gap:var(--gap-in)}
+.bar{display:grid; grid-template-columns:11em 1fr auto; gap:0 16px; align-items:center;
+     font-family:var(--sans); font-size:14.5px}
+.bar .k{color:var(--ink-2)}
+.track{height:16px; background:var(--panel-2); position:relative}
+.fill{height:100%; display:block}
+.fill-a{background:var(--accent)}
+.fill-b{background:var(--mute)}
+.fill-c{background:var(--faint)}
+.bar .v{font-variant-numeric:tabular-nums; color:var(--ink); font-weight:600;
+        min-width:3.8em; text-align:right}
+
+/* 小倍数图（N 簇 × 3 指标） */
+.small-multiples{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:30px 40px}
+.sm{display:grid; gap:7px; align-content:start;
+    border-top:2px solid var(--rule); padding-top:14px}
+.sm-name{font-family:var(--sans); font-size:16px; font-weight:600; line-height:1.4;
+         margin-bottom:2px}
+.sm-name em{font-style:normal; color:var(--accent); font-variant-numeric:tabular-nums}
+.sm-row{display:grid; grid-template-columns:3.8em 1fr 3.4em; gap:10px; align-items:center;
+        font-family:var(--sans); font-size:13.5px; color:var(--mute)}
+.sm-row .t{height:11px; background:var(--panel-2); position:relative}
+.sm-row .v{font-variant-numeric:tabular-nums; text-align:right}
+.sm-type{font-family:var(--sans); font-size:13.5px; color:var(--mute); margin-top:6px}
+.sm-type.hot{color:var(--accent); font-weight:600}
+
+/* ---------- 引言块 ---------- */
+.pull{border-left:3px solid var(--accent); padding:3px 0 3px 26px; margin:34px 0;
+      font-size:21px; line-height:1.68; color:var(--ink)}
+.pull cite{display:block; font-family:var(--sans); font-size:14px; font-style:normal;
+           color:var(--mute); margin-top:12px; letter-spacing:.02em}
+
+/* ---------- 折叠（打印时自动全展开） ---------- */
+details{border-top:1px solid var(--rule); margin:0}
+details:last-of-type{border-bottom:1px solid var(--rule)}
+summary{font-family:var(--sans); font-size:16.5px; font-weight:600; cursor:pointer;
+        padding:16px 0; list-style:none; display:flex; gap:14px; align-items:baseline}
+summary::-webkit-details-marker{display:none}
+summary::after{content:"展开"; font-size:13px; font-weight:400; color:var(--mute);
+               margin-left:auto; letter-spacing:.06em}
+details[open] summary::after{content:"收起"}
+summary .tag{font-size:12.5px; color:var(--accent); font-variant-numeric:tabular-nums}
+details .body{padding:0 0 26px}
+details .body p:last-child{margin-bottom:0}
+
+/* ---------- 提示条（局限声明等） ---------- */
+.caveat{background:var(--panel); padding:22px 26px; margin:28px 0; font-size:17px;
+        line-height:1.72; color:var(--ink-2)}
+.caveat b{color:var(--accent)}
+
+/* ---------- 页脚 ---------- */
+footer{margin-top:88px; padding-top:28px; border-top:2px solid var(--ink);
+       font-family:var(--sans); font-size:14px; color:var(--mute); line-height:1.9}
+
+/* ==========================================================================
+   打印：与屏幕同比例 —— 同一套样式、同一个宽度比例，PDF 只是换个纸张
+   A4 210mm − 左右各 25mm = 160mm 内容宽，11pt 正文 → 41 字/行（与屏幕一致）
+   ========================================================================== */
+@media print{
+  @page{size:A4; margin:18mm 25mm}
+  body{background:#fff; font-size:11pt; line-height:1.78}
+  .page{width:100%; max-width:none; padding:0}
+  .masthead{padding-top:0}
+
+  /* 标题不许落在页尾；块级不许被切断；长表格按行分页并重复表头 */
+  h1,h2,h3,h4,summary{break-after:avoid; page-break-after:avoid}
+  figure,.pull,.caveat,.bars,.sm,.vcell,details,blockquote,figcaption{
+    break-inside:avoid; page-break-inside:avoid}
+  .small-multiples{break-inside:auto; page-break-inside:auto}
+  .tw{break-inside:auto; page-break-inside:auto}
+  tr,td,th{break-inside:avoid; page-break-inside:avoid}
+  thead{display:table-header-group}
+
+  /* 折叠区全部展开 —— PDF 必须能看到 HTML 里被折叠的全部内容 */
+  details{border-color:#bbb}
+  details > .body{display:block !important}
+  details > summary{cursor:default}
+  summary::after{content:""}
+  summary::before{display:none}
+
+  /* 链接去装饰（打印件不能点，靠时间戳文字定位） */
+  a{color:var(--ink); border:0}
+  .ts{color:var(--ink-2); border-bottom:0}
+
+  /* 保留底色：条形图、来源标记、判定标签、定性卡 */
+  .verdict,.caveat,details[open]{-webkit-print-color-adjust:exact; print-color-adjust:exact}
+  .verdict{background:#F4F2ED !important}
+  .src-v{background:#1F2227 !important; color:#fff !important;
+    -webkit-print-color-adjust:exact; print-color-adjust:exact}
+  .src-c{background:#6E7681 !important; color:#fff !important;
+    -webkit-print-color-adjust:exact; print-color-adjust:exact}
+  .src-m{border-color:#9AA1A9 !important; color:#6E7681 !important}
+  .verd-no{background:#A63D2F !important; color:#fff !important;
+    -webkit-print-color-adjust:exact; print-color-adjust:exact}
+  .verd-tight{background:#EDEAE3 !important; color:#A63D2F !important;
+    -webkit-print-color-adjust:exact; print-color-adjust:exact}
+  .verd-ok{background:#EDEAE3 !important; color:#464C55 !important;
+    -webkit-print-color-adjust:exact; print-color-adjust:exact}
+  mark{background:#F0E4E0 !important; -webkit-print-color-adjust:exact;
+    print-color-adjust:exact}
+  .fill,.track,.rate i,.sm-row .t{-webkit-print-color-adjust:exact;
+    print-color-adjust:exact}
+  table{font-size:10pt}
+}
+/* 注意：必须限定 screen —— 打印时 A4 内容宽折算约 605px，不加限定会误用移动端布局 */
+@media screen and (max-width:860px){
+  body{font-size:17px}
+  h1{font-size:30px}
+  h2{font-size:26px}
+  h3{font-size:21px}
+  h4{font-size:19px}
+  .standfirst{font-size:18px}
+  .verdict{grid-template-columns:1fr; padding:22px}
+  .small-multiples{grid-template-columns:1fr; gap:24px}
+  .bar{grid-template-columns:1fr; gap:4px}
+  .pull{font-size:18px}
+}
+</style>
+</head>
+<body>
+<div class="page">
+<header class="masthead">
+  <p class="kicker">视频数据分析报告 · 技术类</p>
+  <h1>KVMem：16G 显卡跑 27B 长上下文，靠的是一次聪明的取舍</h1>
+  <p class="standfirst">
+    一个让 16G 显存显卡能「逻辑上」跑 256K 上下文的推理工程方案。它的核心不是新算法，
+    而是把 KV cache 的调度从<b>流式搬运</b>改成<b>检索式常驻</b>——代价是把成本从 decode 挪到了 prefill。
+    这条视频的信息密度很高，但<b>最实用的两个数字都不在视频里，在评论区</b>。
+  </p>
+  <p class="meta">
+    <span>BV1r2ey6EEh5</span>
+    <span>UP 主 <b>FirePKU</b></span>
+    <span>时长 <b>25 分 07 秒</b></span>
+    <span>发布 <b>2026-09-18</b></span>
+    <span>播放 <b>23,465</b></span>
+    <span>点赞 <b>1,335</b></span>
+    <span>投币 <b class="num">989</b></span>
+    <span>收藏 <b>2,411</b></span>
+    <span>分析于 <b>2026-09-20</b></span>
+    <span>取样 <b>热度前 268 条（33.6%）</b></span>
+  </p>
+</header>
+
+<section class="bleed">
+  <dl class="verdict">
+    <div class="vcell">
+      <dt>视频类型</dt>
+      <dd>技术方案讲解 · 部署教程<br><span class="rate" style="font-size:14px">开源项目官方讲解，非第三方测评</span></dd>
+    </div>
+    <div class="vcell">
+      <dt>解决什么问题</dt>
+      <dd>16G 显存不够装 27B 模型的 KV cache——传统方案在接近满上下文时 decode 会掉到个位数 tok/s</dd>
+    </div>
+    <div class="vcell">
+      <dt>技术定位</dt>
+      <dd>KV cache 的<b>分层管理 + 块级检索</b>，与 vLLM PagedAttention、Quest / H2O / InfLLM 同源；差异在<b>不做 token 级稀疏，做块级检索后重排成连续 KV 池</b></dd>
+    </div>
+    <div class="vcell">
+      <dt>成熟度</dt>
+      <dd><span class="verd verd-tight">原型偏可用</span><br>作者自称「还比较初级」，参数要自己调；Windows CUDA 13 有现成 release</dd>
+    </div>
+    <div class="vcell vcell-full">
+      <dt>说得对不对</dt>
+      <dd><b>机制讲解准确，但三个关键结论需要收紧</b>：① 逻辑上下文不是「想设多大就多大」（UP 在评论区补了经验公式）；② 「prompt 限制每轮 &lt;16K」在实践中失效；③ 方案性质是<b>有损恢复</b>，无理论等价性证明——这点视频里没说清，是评论区追问出来的</dd>
+    </div>
+    <div class="vcell">
+      <dt>视频价值</dt>
+      <dd><span class="rate"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i><em>4 / 5 · 机制讲得清</em></span></dd>
+    </div>
+    <div class="vcell">
+      <dt>评论区价值</dt>
+      <dd><span class="rate"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i><em>4 / 5 · 8 份独立实测</em></span></dd>
+    </div>
+  </dl>
+</section>
+
+<h2><span class="no">01</span><span>视频概览与定性<span class="sub">先说数据能不能信，再说它讲了什么</span></span></h2>
+
+<h3>1.1 先说清楚：本篇的数据可靠性边界</h3>
+<p><span class="src src-m">我推断</span>这份分析<b>全部基于 B站 AI 字幕</b>（<code>data_source: "ai_subtitle"</code>），<b>未经人工校对</b>。技术类视频是 AI 字幕最不可靠的品类——因为术语密度高，而错一个术语整段理解就偏。</p>
+<p>本片实测到的误转里，<b>有一条足以把语义读反</b>：</p>
+<div class="tw">
+<table>
+  <thead><tr><th style="width:30%">字幕写成</th><th style="width:28%">实际应该是</th><th>危害</th></tr></thead>
+  <tbody>
+    <tr><td>常识任务 / 常识的一个 agent 调用</td><td><b>长上下文</b>（context）</td>
+        <td><span class="verd verd-no">语义反转</span> 把「长上下文」读成「常识」，全片最重要的概念被换掉了</td></tr>
+    <tr><td>prefer</td><td><b>prefill</b>（预填充）</td>
+        <td><span class="verd verd-no">关键术语</span> 全文多处，是理解整条性能曲线的钥匙</td></tr>
+    <tr><td>250K 的历史</td><td><b>256K</b></td><td><span class="verd verd-tight">数字失真</span></td></tr>
+    <tr><td>27P 模型</td><td><b>27B</b></td><td><span class="verd verd-tight">参数名损坏</span></td></tr>
+    <tr><td>KBMMABUDGET</td><td><code>kv_mem_budget</code> 之类的参数名</td><td><span class="verd verd-tight">参数名失真</span></td></tr>
+    <tr><td>WCR</td><td>疑为 <b>WSL</b></td><td><span class="verd verd-tight">影响对测试环境的理解</span></td></tr>
+  </tbody>
+</table>
+</div>
+<div class="caveat">
+  <b>技术类的规则和娱乐类不同。</b>娱乐类视频只列「会导致理解错误」的误转；<b>技术类必须保留全量</b>——
+  术语错一个，后面所有推论都建立在错的前提上。上面 6 条全部需要回原片核对。
+</div>
+<details>
+  <summary><span class="tag">已排除</span>其余 7 处不影响理解的误转</summary>
+  <div class="body">
+    <p>逻辑上下文杠C → <code>-c</code>（参数）· KV尺 / KB → KV cache · RW显存 → GPU 显存 · pro6000 → RTX PRO 6000 · 一素 → issue · 五零70ti → 5070 Ti · 长城的历史 → 长上下文的历史。</p>
+    <p><b>列在这里只是让口径完整</b>——你知道我查过，且判断它们不重要。</p>
+  </div>
+</details>
+
+<h3>1.2 它要解决的痛点：一本显存账</h3>
+<p><span class="src src-v">视频说</span>从最朴素的账讲起（<a class="ts" href="https://www.bilibili.com/video/BV1r2ey6EEh5/?t=175" target="_blank" rel="noopener">02:55</a>）：</p>
+<div class="tw">
+<table>
+  <thead><tr><th style="width:56%">16G 显存的用途</th><th>占用</th></tr></thead>
+  <tbody>
+    <tr><td>模型权重（Q3 / Q4 量化的 27B 稠密模型）</td><td class="n"><b>11–12 GB</b></td></tr>
+    <tr><td>运行中计算 / 其他程序</td><td class="n">1 GB+</td></tr>
+    <tr><td><b>留给 KV cache</b></td><td class="n"><b>只剩 3–4 GB</b></td></tr>
+  </tbody>
+</table>
+</div>
+<p>传统 streaming 方案（KV 放内存、decode 时边算边通过 PCIe 载回显存）的问题在于：<b>接近 200K 满上下文时，每一步 decode 都要走 PCIe 搬运，速度掉到 10 token/s 甚至个位数</b>（<a class="ts" href="https://www.bilibili.com/video/BV1r2ey6EEh5/?t=240" target="_blank" rel="noopener">04:00</a>）。</p>
+<p><span class="src src-m">我推断</span>这就是整条视频的问题定义：<b>不是"显存不够"，而是"不够的时候每步都要付一次搬运费"</b>。方向定得准，后面的方案才有意义。</p>
+
+<h3>1.3 技术定位：它不是新算法</h3>
+<p><span class="src src-m">我推断</span>它的本质是 <b>KV cache 的分层管理</b>——显存里保留一个有界的「工作集」，完整 KV 放内存，用 K 值相似度做<b>块级检索</b>。这条路线与 vLLM PagedAttention、Quest / H2O / InfLLM 同源。</p>
+<p>但它<b>刻意选了不同的取舍点</b>：不做 token 级稀疏，而是拿检索出来的块<b>重排成一段连续 KV 池</b>。这个选择是它能宣称「decode 期间显存里的 KV 保持不变」的前提，也是速度优势的真正来源。</p>
+
+<h3>1.4 说得对不对：逐项核对</h3>
+<div class="tw">
+<table>
+  <thead><tr><th style="width:30%">视频结论</th><th style="width:44%">核对结果</th><th>判定</th></tr></thead>
+  <tbody>
+    <tr><td>逻辑上下文「想改成多少就多少」，256K</td>
+        <td>UP 在评论区补充经验公式：<b>active ctx ≈ 6 × 逻辑 ctx</b>；超过约 192K 后质量损失开始明显</td>
+        <td><span class="verd verd-tight">要收紧</span></td></tr>
+    <tr><td>建议在 prompt 里限制每轮输出 &lt;16K</td>
+        <td>实测无效——思考链长度不受 prompt 控制；真实解法是换 <code>chat_template.jinja</code></td>
+        <td><span class="verd verd-no">被推翻</span></td></tr>
+    <tr><td>方案效果「超出预期」</td>
+        <td>UP 承认<b>在计算上不等价于原始 KV、没有尝试证明</b>，属<b>有损恢复</b>，靠实测效果支撑</td>
+        <td><span class="verd verd-tight">性质要看清</span></td></tr>
+    <tr><td>Q4 模型配 Q5 KV，「Q8 太极限」</td>
+        <td>最高赞实测（4070TiS，160 赞）用的就是 <b>Q4 + Q8KV</b>，效果良好</td>
+        <td><span class="verd verd-ok">推荐偏保守</span></td></tr>
+    <tr><td>长上下文 prefill 降到短上下文的 50–60%</td>
+        <td>第三方独立实测 <b>−44.5%</b>（355 → 197 tok/s），与视频吻合</td>
+        <td><span class="verd verd-ok">数据可信</span></td></tr>
+    <tr><td>「A 卡在开发中」</td>
+        <td>评论区已有多人用 ROCm / hip 跑通（6800XT、6900XT、9060XT）</td>
+        <td><span class="verd verd-ok">已落地</span></td></tr>
+  </tbody>
+</table>
+</div>
+
+<h3>1.5 价值评估：分人群给结论</h3>
+<div class="tw">
+<table>
+  <thead><tr><th style="width:34%">如果你是</th><th>建议</th></tr></thead>
+  <tbody>
+    <tr><td>16G 显卡用户，想本地跑 27B 长上下文</td><td><b>值得试。</b>项目开源，Windows 有现成 release，覆盖 RTX 20/30/40/50 系及大量专业卡</td></tr>
+    <tr><td>只想「要长上下文」，不在乎折腾</td><td><b>买 24G 卡更省事。</b>这个方案的价值是「用便宜卡逼近贵卡」，不是超越</td></tr>
+    <tr><td>在意成熟度 / 要上生产</td><td>先别。作者自称项目「还比较初级」，参数要自己调，且它是 llama.cpp 生态的改动，不是通用框架能力</td></tr>
+    <tr><td>只想搞懂原理</td><td>读 2.2 的四步机制 + 7.2 的「成本转移」——这两块是全片最值钱的部分</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h2><span class="no">02</span><span>视频核心总结<span class="sub">绪论 → 本论 → 结论，以及这个设计的统一点</span></span></h2>
+
+<h3>2.1 绪论：它要证明什么</h3>
+<p>要证明的是：<b>显存里的 KV 可以是有界的，而上下文长度不必跟着显存走。</b>一旦这个成立，「16G 卡不能跑长上下文」就不是硬件定律，只是当前实现方式的限制。</p>
+
+<h3>2.2 本论：四步机制</h3>
+<p><span class="src src-v">视频说</span>（<a class="ts" href="https://www.bilibili.com/video/BV1r2ey6EEh5/?t=331" target="_blank" rel="noopener">05:31</a>）：</p>
+<div class="tw">
+<table>
+  <thead><tr><th style="width:8%">步</th><th style="width:40%">做什么</th><th>关键点</th></tr></thead>
+  <tbody>
+    <tr><td class="n">1</td><td>算完一个 token 的 KV → 完整 KV 块存内存，同时存下 <b>K 值的检索索引</b></td><td>索引是后面检索的依据</td></tr>
+    <tr><td class="n">2</td><td>query 进来 → 计算它与内存中各 KV 块 K 值的<b>相似度</b></td><td>相似度决定选哪些块</td></tr>
+    <tr><td class="n">3</td><td>选出相似度最高的若干块 → <b>按历史顺序重排成连续 KV 池</b> → 放回显存</td><td><b>「重排成连续」是它区别于 token 级稀疏的地方</b></td></tr>
+    <tr><td class="n">4</td><td>GPU 在这个工作集上持续生成</td><td>decode 期间不再搬运</td></tr>
+  </tbody>
+</table>
+</div>
+<p>UP 自己举的例子（<a class="ts" href="https://www.bilibili.com/video/BV1r2ey6EEh5/?t=434" target="_blank" rel="noopener">07:14</a>）：假设有 10 个历史 KV 块 H0–H9，显存只装得下 4 个。query 进来算相似度 → 选中 <b>H4</b> → H4 不在显存，就和显存里用不上的 <b>H6</b> 交换 → 在 4 块的池里继续生成。</p>
+
+<h3>2.3 结论</h3>
+<p><span class="src src-v">视频说</span>等效 256K 上下文在 16G 卡上可跑，decode 速度 30–40 tok/s 且不随上下文增长而衰减，论文实验显示准确率基本无下降。</p>
+
+<h3>2.4 这个设计的统一点在哪</h3>
+<p><span class="src src-m">我推断</span>全片真正值得记住的一句是——<b>它把成本从 decode 转移到了 prefill。</b></p>
+<p>长上下文下 prefill 掉到 50–60%，原因是<b>要对 query 做两次 prefill</b>（<a class="ts" href="https://www.bilibili.com/video/BV1r2ey6EEh5/?t=1350" target="_blank" rel="noopener">22:30</a>）：第一次算向量用于检索，选完块后再重新 prefill 一遍（原文说这样「对解答质量的提升是很明显的」）。</p>
+<p>所以它的适配面非常明确：</p>
+<div class="tw">
+<table>
+  <thead><tr><th style="width:44%">场景</th><th>适配度</th></tr></thead>
+  <tbody>
+    <tr><td>多轮 agent 调用（每轮新输入和工具结果都不长）</td><td><span class="verd verd-ok">很合适</span> UP 自测「影响没有想象的那么大」</td></tr>
+    <tr><td>一次性塞超长文档 → 然后大量生成</td><td><span class="verd verd-tight">会痛</span> 两次 prefill 的开销躲不掉</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h2><span class="no">03</span><span>评论区概览与总结<span class="sub">观众在说什么，以及各类观点各占多少份量</span></span></h2>
+
+<h3>3.1 评论结构侧写</h3>
+<p>分析时全站 <span class="num">797</span> 条评论，取热度前 <span class="num">268</span> 条去重（含楼中楼），覆盖 <span class="num">33.6%</span>。热度分布：≥100 赞 1 条 / ≥20 赞 7 条 / ≥5 赞 23 条 / <b>0 赞 141 条（52.6%）</b>。</p>
+<div class="caveat">
+  <b>先说一条取样偏差。</b>本次聚类用的是**顶层评论**（楼中楼没有 <code>rcount</code>，无法计争议度）。而技术类视频的楼中楼里往往藏着最硬的技术交锋——所以下面这张分布图<b>只反映顶层评论的构成</b>。
+</div>
+
+<h3>3.2 观点谱：六个簇，三个轴</h3>
+<p>把热度前 55 条有效顶层评论逐条归类，得到六个观点簇：</p>
+<p class="metrics">
+<b>普遍度</b>＝该簇条数 ÷ 有效样本条数（多少人<b>提到</b>）<br>
+<b>认同度</b>＝该簇点赞合计 ÷ 全部点赞合计（多少人<b>认同</b>）<br>
+<b>争议度</b>＝该簇楼中楼回复合计 ÷ 全部回复合计（多少人<b>愿意为它争</b>）
+</p>
+
+<figure class="bleed tall">
+  <div class="small-multiples">
+    <div class="sm">
+      <div class="sm-name">A 第三方实测报数</div>
+      <div class="sm-row"><span>普遍</span><span class="t"><span class="fill fill-a" style="display:block;width:30.9%"></span></span><span class="v">30.9%</span></div>
+      <div class="sm-row"><span>认同</span><span class="t"><span class="fill fill-b" style="display:block;width:30.1%"></span></span><span class="v">30.1%</span></div>
+      <div class="sm-row"><span>争议</span><span class="t"><span class="fill fill-a" style="display:block;width:40.6%"></span></span><span class="v">40.6%</span></div>
+      <div class="sm-type hot">普遍度与争议度双第一 · 社区的主要贡献</div>
+    </div>
+    <div class="sm">
+      <div class="sm-name">F 情绪 · 赞美 · 催更</div>
+      <div class="sm-row"><span>普遍</span><span class="t"><span class="fill fill-b" style="display:block;width:25.5%"></span></span><span class="v">25.5%</span></div>
+      <div class="sm-row"><span>认同</span><span class="t"><span class="fill fill-a" style="display:block;width:46.6%"></span></span><span class="v">46.6%</span></div>
+      <div class="sm-row"><span>争议</span><span class="t"><span class="fill fill-c" style="display:block;width:27.8%"></span></span><span class="v">27.8%</span></div>
+      <div class="sm-type hot">认同度第一 · 最高赞是纯情绪</div>
+    </div>
+    <div class="sm">
+      <div class="sm-name">B 可行性质疑与原理辨析</div>
+      <div class="sm-row"><span>普遍</span><span class="t"><span class="fill fill-b" style="display:block;width:16.4%"></span></span><span class="v">16.4%</span></div>
+      <div class="sm-row"><span>认同</span><span class="t"><span class="fill fill-c" style="display:block;width:4.6%"></span></span><span class="v">4.6%</span></div>
+      <div class="sm-row"><span>争议</span><span class="t"><span class="fill fill-c" style="display:block;width:5.1%"></span></span><span class="v">5.1%</span></div>
+      <div class="sm-type hot">数据最弱，信息量最高 —— 必读</div>
+    </div>
+    <div class="sm">
+      <div class="sm-name">E 功能期待与适配请求</div>
+      <div class="sm-row"><span>普遍</span><span class="t"><span class="fill fill-b" style="display:block;width:16.4%"></span></span><span class="v">16.4%</span></div>
+      <div class="sm-row"><span>认同</span><span class="t"><span class="fill fill-c" style="display:block;width:4.6%"></span></span><span class="v">4.6%</span></div>
+      <div class="sm-row"><span>争议</span><span class="t"><span class="fill fill-c" style="display:block;width:6.2%"></span></span><span class="v">6.2%</span></div>
+      <div class="sm-type">双卡 / A 卡 / 显存卸载 —— 多数已被作者回应</div>
+    </div>
+    <div class="sm">
+      <div class="sm-name">C 衍生开发与移植整合</div>
+      <div class="sm-row"><span>普遍</span><span class="t"><span class="fill fill-c" style="display:block;width:7.3%"></span></span><span class="v">7.3%</span></div>
+      <div class="sm-row"><span>认同</span><span class="t"><span class="fill fill-c" style="display:block;width:6.4%"></span></span><span class="v">6.4%</span></div>
+      <div class="sm-row"><span>争议</span><span class="t"><span class="fill fill-c" style="display:block;width:9.4%"></span></span><span class="v">9.4%</span></div>
+      <div class="sm-type">第三方 fork、8G 卡方案、BeeLlama 移植</div>
+    </div>
+    <div class="sm">
+      <div class="sm-name">D 工具与打包</div>
+      <div class="sm-row"><span>普遍</span><span class="t"><span class="fill fill-c" style="display:block;width:3.6%"></span></span><span class="v">3.6%</span></div>
+      <div class="sm-row"><span>认同</span><span class="t"><span class="fill fill-c" style="display:block;width:7.6%"></span></span><span class="v">7.6%</span></div>
+      <div class="sm-row"><span>争议</span><span class="t"><span class="fill fill-c" style="display:block;width:10.8%"></span></span><span class="v">10.8%</span></div>
+      <div class="sm-type">Windows 一键包（中位赞 30，单条质量最高）</div>
+    </div>
+  </div>
+  <figcaption><b>怎么读：</b>三个指标互相独立——<b>普遍度</b>是「多少人提到」，<b>认同度</b>是「多少人认同」，<b>争议度</b>是「多少人愿意为它争」。三者各自归一化，因此<b>不能横向相加</b>。
+  <br><b>口径：</b>热度前 55 条顶层评论，已剔除纯表情与无实质内容的应答。</figcaption>
+</figure>
+
+<h3>3.3 一个反常发现：技术类视频里，最高赞是情绪，最值钱的是质疑</h3>
+<p><span class="src src-m">我推断</span>这条的形态和娱乐类视频完全相反，值得单独记一笔：</p>
+<div class="pull">
+  「情绪 · 赞美 · 催更」簇的<b>认同度 46.6%，全场第一</b>——因为最高赞（209 赞）是一句纯粹的感叹。
+  而「可行性质疑与原理辨析」簇的认同度只有 <b>4.6%</b>，
+  但整条视频里最实质的一次交锋、以及最实用的经验公式，都出在这一簇。
+</div>
+<p>为什么？因为<b>技术类视频的观众分层比娱乐类更极端</b>：大多数人看不懂细节，只能表达「牛逼」；真正能提出技术质疑的是极少数，而他们的评论天然不会高赞——<b>看懂的人少，点懂的人更少</b>。</p>
+<div class="caveat">
+  <b>方法上的结论。</b>娱乐类视频要「先按热度看前 30 条」；<b>技术类视频必须反过来</b>——
+  先按热度看前 5 条（确认社区情绪基调），然后<b>直接去捞那些点赞低但带专业术语的评论</b>。
+  本报告第 4 章即按此组织：B 簇虽然数据最小，仍单独展开一整节。
+</div>
+
+<h2><span class="no">04</span><span>评论区核心总结<span class="sub">逐簇展开：每类的绪论 / 本论 / 结论，以及与视频的对照</span></span></h2>
+
+<h3>4.1 A 簇 · 第三方实测报数</h3>
+<p><b>绪论。</b>这是社区的主要贡献：8 位以上用户报出了「自己的硬件 + 跑出来的速度」。技术类视频的评论区，最硬的部分永远是这一块。</p>
+<p><b>本论。</b>把散落的报数拼成一张表，价值立刻超过视频：</p>
+<div class="tw">
+<table>
+  <thead><tr><th style="width:26%">硬件</th><th style="width:26%">结果</th><th>备注</th></tr></thead>
+  <tbody>
+    <tr><td>Tesla T10 16G（sm75）</td><td>逻辑窗口 262,144；单发实测 <b>257,402 token</b>；prefill <b>355 → 197 tok/s（−44.5%）</b></td><td>本评论区最严谨的一份，含检索命中率的逐项记录</td></tr>
+    <tr><td>4070TiS 16G</td><td>256K 拉满，关视觉 <b>60–70 tok/s</b>，最低 40–50</td><td><b>最高赞实测（160 赞）</b>，且没按 UP 推荐的 Q5 配 KV</td></tr>
+    <tr><td>5070Ti 16G</td><td>262,144 下 <b>50–65 tok/s</b></td><td>—</td></tr>
+    <tr><td>5070Ti + DDR5 32G</td><td>长任务不低于 <b>60 tok/s</b></td><td>视觉层 Q8 放 CPU 比原版 F16 更快</td></tr>
+    <tr><td>9060XT</td><td>iq3_s <b>25 tok/s</b></td><td>—</td></tr>
+    <tr><td>4060Ti 16G</td><td>256K / <b>30 TPS</b></td><td>「全新的 prefill 耗时长了，增量 prefill 都很舒服」</td></tr>
+    <tr><td>4060 8G（第三方 fork）</td><td>约 <b>20 tok/s</b></td><td>Bonsai 2 27B 版本</td></tr>
+    <tr><td>AMD 6900XT + ROCm</td><td>prefill 400+ / decode 40+，<b>prefill 几乎不变、decode 快 20%</b></td><td>视频说「A 卡在开发中」，实际已跑通</td></tr>
+  </tbody>
+</table>
+</div>
+<p><b>结论。</b>三条判断：</p>
+<p><b>① 视频的 prefill 数据可信。</b>第三方独立实测 −44.5%，与视频说的「降到 50–60%」（即降幅 40–50%）吻合。两个来源对上，可信度上升。</p>
+<p><b>② UP 的推荐偏保守。</b>视频说「Q4 配 Q5，Q8 太极限」，而最高赞那条用的就是 Q4 + Q8KV，效果良好。<b>实测空间比视频说的更大。</b></p>
+<p><b>③ 瓶颈确实在 prefill，不在 decode。</b>多条独立的报数都指向同一个现象（「全新的 prefill 耗时长了，增量 prefill 都很舒服」），与 2.4 的机制解释相互印证。</p>
+<p><b>与视频对照。</b><span class="verd verd-ok">相互印证</span> 这是本次分析里最干净的一次交叉验证。</p>
+
+<h3>4.2 B 簇 · 可行性质疑与原理辨析（本报告最该读的一节）</h3>
+<p><b>绪论。</b>这一簇数据上最弱（认同度 4.6%），但它改变了视频给人的整体印象。</p>
+<p><b>本论。</b>核心是一次交锋：</p>
+<div class="pull">
+  <b>@无名可取啦啦啦（9 赞）</b>：只有线性注意力可以分块，千问是不行的……这个想法看起来很好，你可以去看一下 <b>cacheblend 论文</b>，实际上是做不到的。
+</div>
+<p>UP 主的回应（这是关键）：</p>
+<div class="pull">
+  <b>@FirePKU（UP 主）</b>：我知道我们在计算上<b>是不等价于原始 KV 的，我们也没有尝试证明这一点</b>。但是这种有损的恢复在实际中效果非常好，其实也是超过我们预期的。
+</div>
+<p><b>结论（三条，全部来自评论区，视频里都没有）：</b></p>
+<p><b>① 方案性质是「有损恢复」。</b>视频讲的是机制如何工作，听起来像无损方案；<b>评论区才问出了这一点</b>。它工程上有效，但<b>不是理论上成立</b>。</p>
+<p><b>② ⭐ 一条经验公式：<code>active ctx ≈ 6 × 逻辑 ctx</code>。</b>UP 主自己给的。按此推算：32K 激活 ÷ 6 ≈ <b>逻辑上下文超过约 192K 后质量损失开始明显</b>。这比视频里「逻辑上下文随便设 256K」的说法<b>保守得多</b>。</p>
+<p><b>③ UP 主动承认幻觉的来源。</b>「特别是幻觉，默认设置 32k 激活容易出现在 200k 以上的时候」——同时印证了 6.3 里那条「召回选错就没有兜底」的免责声明。</p>
+<p><b>与视频对照。</b><span class="verd verd-tight">结论要收紧</span> 视频只讲了它怎么工作，没讲它的适用边界在哪；边界是评论区补的。</p>
+
+<h3>4.3 C 簇 · 衍生开发与移植整合</h3>
+<p><b>绪论。</b>这一簇证明项目已经越过了「UP 主一个人的作品」阶段。</p>
+<p><b>本论。</b>出现的东西包括：能跑 Bonsai 2 27B 的第三方 fork（4060 8G 约 20 tok/s）、移植到 bee-llama.cpp 作为基座的版本、自动切换 KV 精度的分支、以及一位用户把部署流程整合进自己维护的开源项目。</p>
+<p><b>结论。</b>判断一个开源技术项目生命力的最快指标，就是<b>评论区里有没有人在做「非官方 fork」</b>。这一簇虽然只占 7.3% 的条数，但它是最强的正面信号。</p>
+<p><b>与视频对照。</b><span class="verd verd-ok">超出视频预期</span> 视频只介绍了自己那一版实现。</p>
+
+<h3>4.4 D 簇 · 工具与打包（单条质量最高）</h3>
+<p><b>绪论。</b>只有 2 条，但<b>中位赞 30，是全六簇里最高的</b>。</p>
+<p><b>本论。</b>内容是社区成员做的 **Windows CUDA 13 一键包**（含对照版本），经网盘分发，并修了一个局域网监听失效的 bug。</p>
+<p><b>结论。</b>这一簇说明一个被低估的事实：<b>技术项目的采用门槛往往不在算法，在编译。</b>作者给的是源码，社区补的是「让普通人能用上」的那一层。而这一层恰恰是原项目最缺、也最容易被忽视的。</p>
+<p><b>与视频对照。</b><span class="verd verd-ok">视频未覆盖</span> 视频讲的是原理与官方 release，没有覆盖 Windows 用户的编译路径。</p>
+
+<h3>4.5 E 簇 · 功能期待与适配请求</h3>
+<p><b>绪论。</b>16.4% 的普遍度，但认同与争议都低——这是「有需求但还没形成讨论」的典型形态。</p>
+<p><b>本论。</b>诉求集中在四类：双卡模式、A 卡 / Vulkan 适配、视觉矩阵卸载到指定显卡、把仓库文档改成中文。</p>
+<p><b>结论。</b>这一簇的价值不在观点，在<b>需求清单</b>——它等于一份免费的路线图投票。其中「A 卡适配」在 4.1 里已经被用户自己解决了（ROCm 跑通），说明<b>社区跑在了官方路线图前面</b>。</p>
+<p><b>与视频对照。</b><span class="verd verd-ok">已在实现</span> 视频说 A 卡「在开发中」，实际已有人跑通。</p>
+
+<h3>4.6 F 簇 · 情绪 · 赞美 · 催更</h3>
+<p><b>绪论。</b>条数第二（25.5%），认同度第一（46.6%）。</p>
+<p><b>本论。</b>内容几乎全是「赛博活神仙」「伟大无需多言」「这个项目我王多鱼投了」这类表达，以及催更、催 PR 进主线的呼吁。</p>
+<p><b>结论。</b>这一簇本身没有技术信息，但它是一个<b>可信度信号</b>：一个技术项目如果连情绪簇都在真诚支持而不是嘲讽，说明它在目标用户群里确实解决了真问题。<b>把它当情绪读就浪费了，应该把它当「社区信任度」的代理指标读。</b></p>
+<p><b>与视频对照。</b>不适用——这一簇讨论的对象是作者，不是内容。</p>
+
+<h2><span class="no">05</span><span>关键参数与对照时间点<span class="sub">速查表：参数、建议值、取值范围、调错会怎样</span></span></h2>
+<div class="tw">
+<table>
+  <thead><tr><th style="width:20%">参数</th><th style="width:16%">建议值</th><th style="width:26%">取值范围 / 现状</th><th>调错会怎样</th></tr></thead>
+  <tbody>
+    <tr><td><b>逻辑上下文</b><br><code>-c</code></td><td>256K</td>
+        <td>与模型自身支持的上下文<b>无关</b>；调大只更吃内存</td>
+        <td><span class="verd verd-tight">不是越大越好</span> 按 <code>active ≈ 6×</code> 推算，超过约 192K 幻觉开始明显</td></tr>
+    <tr><td><b>KV 激活预算</b><br><code>kv_mem_budget</code></td><td><b>≥ 32K</b>，不要更小</td>
+        <td>脚本内置 36K / 32K 两套默认</td>
+        <td><span class="verd verd-no">最影响召回质量</span> 作者原话：「有人调更小，会非常影响质量」</td></tr>
+    <tr><td><b>每轮生成长度上限</b></td><td>作者设 ~10K</td>
+        <td>建议 prompt 里要求 &lt;16K</td>
+        <td><span class="verd verd-no">该建议实测失效</span> 思考链长度不受 prompt 控制，真解是换 <code>chat_template.jinja</code></td></tr>
+    <tr><td><b>KV 精度搭配</b></td><td>Q3 模型配 Q8 KV<br>Q4 模型配 Q5 KV</td>
+        <td>Q6 可能也可以；Q8「太极限」是作者口径</td>
+        <td><span class="verd verd-ok">有富余</span> 高赞实测用 Q4+Q8KV 跑通且良好</td></tr>
+    <tr><td><b>召回块大小</b><br>block size</td><td>—</td>
+        <td>128 → 32：召回更准，但 200K+ 下<b>额外内存接近 1 GB</b></td>
+        <td><span class="verd verd-tight">取舍项</span> 块设大 → 同样 32K 里装的块少 → 抓不到细粒度相关性</td></tr>
+  </tbody>
+</table>
+</div>
+<h4>关键时间点</h4>
+<div class="tw">
+<table>
+  <thead><tr><th style="width:14%">时间</th><th>内容</th></tr></thead>
+  <tbody>
+    <tr><td class="n"><a class="ts" href="https://www.bilibili.com/video/BV1r2ey6EEh5/?t=175" target="_blank" rel="noopener">02:55</a></td><td>显存账本：留给 KV 只剩 3–4 GB</td></tr>
+    <tr><td class="n"><a class="ts" href="https://www.bilibili.com/video/BV1r2ey6EEh5/?t=253" target="_blank" rel="noopener">04:13</a></td><td>核心取舍：decode 阶段显存 KV 保持不变</td></tr>
+    <tr><td class="n"><a class="ts" href="https://www.bilibili.com/video/BV1r2ey6EEh5/?t=315" target="_blank" rel="noopener">05:15</a></td><td><b>全片最重要的免责声明</b>：召回选错就没有兜底</td></tr>
+    <tr><td class="n"><a class="ts" href="https://www.bilibili.com/video/BV1r2ey6EEh5/?t=331" target="_blank" rel="noopener">05:31</a></td><td>四步工作流程</td></tr>
+    <tr><td class="n"><a class="ts" href="https://www.bilibili.com/video/BV1r2ey6EEh5/?t=510" target="_blank" rel="noopener">08:30</a></td><td>三个核心参数</td></tr>
+    <tr><td class="n"><a class="ts" href="https://www.bilibili.com/video/BV1r2ey6EEh5/?t=1088" target="_blank" rel="noopener">18:08</a></td><td>作者自测性能数据（含主动披露的测量局限）</td></tr>
+    <tr><td class="n"><a class="ts" href="https://www.bilibili.com/video/BV1r2ey6EEh5/?t=1350" target="_blank" rel="noopener">22:30</a></td><td>成本转移：为什么要做两次 prefill</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h2><span class="no">06</span><span>内容纠偏<span class="sub">哪些字不能信，以及视频自身的问题</span></span></h2>
+
+<h3>6.1 字幕来源与可靠性</h3>
+<p>本片字幕为 <b>B站 AI 字幕</b>，<code>data_source: "ai_subtitle"</code>，共约 54 段，<b>未经人工校对</b>。完整误转清单见 1.1——技术类的规则是<b>全量保留</b>，因为术语错一个，后面所有推论都建立在错的前提上。</p>
+
+<h3>6.2 为什么本片字幕错误特别多</h3>
+<p><span class="src src-m">我推断</span>有一个有意思的旁证：</p>
+<div class="pull">
+  <b>@9527ccccccccccc</b>：你们说的是 <b>prefill</b> 吧？<br>
+  <b>@乘风破浪Cfpll</b> 回复：是的，是语音输入法打错了。
+  <cite>这条来自评论区，视频里没有</cite>
+</div>
+<p>也就是说：<b>连母语听众都听错了同一个词，AI 字幕当然也错。</b>这说明「AI 字幕不可直接引用」不是过度谨慎，而是技术类内容的常态。</p>
+
+<h3>6.3 视频自身的问题</h3>
+<p><b>① 免责声明被埋在了流程讲解里。</b>「一旦从内存到显存里选择的这一部分出现了差错，很有可能这个问题就没有办法通过模型自身的能力去解决了」（<a class="ts" href="https://www.bilibili.com/video/BV1r2ey6EEh5/?t=315" target="_blank" rel="noopener">05:15</a>）——这是整个方案最重要的前提，却只在流程讲解里带过一句，没有单独强调。</p>
+<p><b>② 一个没被提到的失效场景</b>（评论区追问出来的）：agent 初始喂 20K 基础指令，跑到 200K 上下文时，<b>最初那 20K 关键指令可能已经全躺在内存里、不再进入工作集</b>。视频对此完全没有覆盖。</p>
+<p><b>③ 作者的自我披露值得记一笔。</b>他主动说明自己的 prefill 数据<b>可能被低估</b>（因为 WSL 限制 + 雷电外接显卡），但 decode 影响不大——因为 decode 主要看显存带宽。<b>这种主动披露在教程类内容里很少见，可信度加分。</b></p>
+
+<h3>6.4 纠偏结论</h3>
+<div class="caveat">
+  <b>必须回原片核对</b>：1.1 表里那 6 条会改变理解的误转，尤其是 <b>prefill / 长上下文 / 256K</b> 三处。<br>
+  <b>必须去评论区补</b>：<code>active ctx ≈ 6 × 逻辑 ctx</code>、「有损恢复、无等价性证明」、20K 指令失效场景——这三条视频里都没有。<br>
+  <b>可以放心引用</b>：prefill 降幅、四步机制、三个核心参数——前者有第三方独立实测印证，后两者属于机制描述。
+</div>
+
+<h2><span class="no">07</span><span>延伸发散<span class="sub">视频和评论区都没说的：补充、更深一层、发散</span></span></h2>
+
+<h3>7.1 补充：一个被两边都漏掉的推论</h3>
+<p><span class="src src-m">我推断</span>把 <code>active ctx ≈ 6 × 逻辑 ctx</code> 这条公式反过来用，会得到一个视频没说、评论区也没人点的结论：</p>
+<div class="tw">
+<table>
+  <thead><tr><th style="width:30%">你设的逻辑上下文</th><th style="width:24%">按公式的安全线</th><th>实际含义</th></tr></thead>
+  <tbody>
+    <tr><td>256K</td><td>约 192K</td><td>超出后幻觉开始明显——<b>设 256K 实际上是设了一个用不到的 64K</b></td></tr>
+    <tr><td>192K</td><td>约 192K</td><td>刚好踩线，是<b>这个激活预算（32K）下的最优逻辑上下文</b></td></tr>
+    <tr><td>128K</td><td>约 192K</td><td>有富余，可以把激活预算调小去省内存</td></tr>
+  </tbody>
+</table>
+</div>
+<p>换句话说：<b>在 32K 激活预算下，把逻辑上下文设成 192K 而不是 256K，是零成本的正确选择。</b>设大了不会更快，只会更吃内存，且在超过 192K 之后还要承担幻觉风险。这条推论视频没说，评论区也没人说——但它是那套参数体系里最直接的一个实用结论。</p>
+
+<h3>7.2 更深一层：这个方案真正的意义不在「省显存」</h3>
+<p><span class="src src-m">我推断</span>大多数人把它读成「16G 卡能跑 256K 了」，这是低估了它。它真正改变的是<b>成本结构</b>：</p>
+<p>在它之前，长上下文的成本是<b>连续的</b>——上下文每长一点，每步 decode 就贵一点，直到 PCIe 带宽变成瓶颈。在它之后，成本变成了<b>离散的</b>：decode 恒定，成本集中在 prefill 那一下，而且是<b>可以预期、可以调参</b>的。</p>
+<p>这个区别决定了三件事：</p>
+<p><b>① 长上下文的性能变得"可工程化"了。</b>不确定的成本没法做容量规划，确定的成本可以。</p>
+<p><b>② 「显存大小」作为硬件选购的第一指标被削弱了。</b>4.1 里那份最严谨的实测是在 <b>Tesla T10（sm75 老架构）</b>上做的——一块被主流认为「该淘汰」的卡，跑出了 257K 的等效窗口。也就是说，<b>被重新定价的不是显卡，是"显存不足"这个问题的严重程度</b>。</p>
+<p><b>③ 它把一次模型能力问题转成了一次检索质量问题。</b>代价是引入了新的失败模式（召回选错没有兜底）。收益是新的失败模式<b>可以被工程手段改善</b>（调 block size、调激活预算），而原来的失败模式只能靠买更贵的卡。</p>
+<p>一句话：<b>它不是在现有约束下做得更好，它是把约束换了一个位置。</b>判断一个工程方案的价值，这是最有用的一把尺子。</p>
+
+<h3>7.3 还没解决的 / 可以继续挖</h3>
+<div class="tw">
+<table>
+  <thead><tr><th style="width:32%">方向</th><th>说明</th></tr></thead>
+  <tbody>
+    <tr><td>去读仓库与论文</td><td>还原被 AI 字幕转坏的<b>真实参数名与默认值</b>，并核对 <code>active ctx ≈ 6×</code> 的出处</td></tr>
+    <tr><td>cacheblend 论文</td><td>评论区那份质疑点名了它。值得读：为什么「理论上做不到」而「实测有效」</td></tr>
+    <tr><td>与 PagedAttention / Quest / H2O 的具体差异</td><td>定位的准确度决定你对它上限的判断</td></tr>
+    <tr><td>楼中楼里的技术交锋</td><td><b>本次聚类只用了顶层评论</b>（楼中楼没有 rcount）。楼中楼里大概率还有更深的技术讨论</td></tr>
+    <tr><td>召回质量的评测</td><td>作者自己说「需要更多质量方面的测试」——这仍是这个项目最大的未知</td></tr>
+  </tbody>
+</table>
+</div>
+<div class="caveat">
+  <b>要不要把这条视频接到你自己的硬件上？</b>
+  本报告只分析「视频 + 评论区」本身，<b>不包含任何读者个人信息</b>——因此你可以随时把它原文分享给任何人。
+  如果你想知道「你手上的显卡能不能跑、该用哪套参数、值不值得为它换硬件」，把你的配置告诉我，
+  我可以基于本文已经核实过的实测数据单独做一次选型分析，<b>产物不会写进这份报告</b>。
+</div>
+
+<footer>
+  <p><b>一句话：想搞懂原理，看 2.2 和 7.2；想动手部署，先看 05 的参数表；想知道它靠不靠谱，看 4.2。</b></p>
+  <p>报告生成于 2026-09-20 · 重制于 2026-10-16 · 数据源：B站视频 <span class="num">BV1r2ey6EEh5</span> 的元数据、AI 字幕与热度前 268 条评论<br>
+  引文为观众原生文字，未经改写；视频相关内容来自 AI 字幕，标注处建议回原片核对<br>
+  <b>本报告不含任何读者个人信息，可自由分享。</b></p>
+</footer>
+</div>
+</body>
+</html>

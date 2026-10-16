@@ -1,0 +1,743 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>20260920-《当内地牛马去香港打工》分析总结</title>
+<style>
+/* ==========================================================================
+   视频分析报告 · 长文编辑轨样式表
+   依据：design-aesthetics-book / editorial-publishing（编辑/出版轨）
+   ---------------------------------------------------------------------------
+   核心决策：**全站单一宽度**（正文、表格、图、图注、定性卡同宽，不再有出血栏）
+   正文 19px / 行距 1.78 / 内容宽 780px ≈ 41 字每行（规范硬上限 42）
+   字体：正文思源宋体，标题·表格·图注思源黑体
+   用色：墨黑 #1F2227（禁纯黑）· 单一强调色赭红 #A63D2F · 禁渐变禁投影
+   ========================================================================== */
+:root{
+  --ink:#1F2227; --ink-2:#464C55; --mute:#6E7681; --faint:#9AA1A9;
+  --paper:#FCFBF8; --panel:#F4F2ED; --panel-2:#EDEAE3; --rule:#E0DCD4;
+  --accent:#A63D2F; --accent-soft:#F0E4E0;
+  --serif:"Noto Serif SC","Source Han Serif SC","Songti SC","SimSun",Georgia,serif;
+  --sans:"Noto Sans SC","Source Han Sans SC","PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  --w:780px;                       /* 全站唯一宽度 */
+  --gap-in:12px; --gap-out:30px;   /* 组内 / 组间，比值 2.5 */
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0; background:var(--paper); color:var(--ink);
+  font-family:var(--serif); font-size:19px; line-height:1.78;
+  -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
+}
+.page{width:var(--w); max-width:calc(100% - 40px); margin:0 auto; padding:0 0 96px}
+.page > *{min-width:0}
+.bleed{display:block}   /* 保留钩子；单一宽度下与正文同宽 */
+
+/* ---------- 报头 ---------- */
+.masthead{padding-top:44px}
+.kicker{font-family:var(--sans); font-size:13.5px; font-weight:600; letter-spacing:.2em;
+        text-transform:uppercase; color:var(--accent); margin:0 0 14px}
+h1{font-family:var(--sans); font-size:42px; font-weight:700; line-height:1.26;
+   letter-spacing:-.015em; margin:0 0 20px; text-wrap:balance}
+.standfirst{font-size:21px; line-height:1.7; color:var(--ink-2); margin:0 0 24px}
+.standfirst b{color:var(--ink); font-weight:600}
+.meta{font-family:var(--sans); font-size:14px; line-height:1.9; color:var(--mute);
+      border-top:1px solid var(--rule); border-bottom:1px solid var(--rule);
+      padding:13px 0; margin:0}
+.meta span{margin-right:22px; white-space:nowrap; display:inline-block}
+.meta b{color:var(--ink-2); font-weight:600; font-variant-numeric:tabular-nums}
+
+/* ---------- 定性区（一屏判断） ---------- */
+.verdict{background:var(--panel); padding:30px 34px; margin:38px 0 0;
+         display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:18px 38px}
+.vcell dt{font-family:var(--sans); font-size:12.5px; font-weight:600; letter-spacing:.14em;
+          color:var(--mute); text-transform:uppercase; margin:0 0 7px}
+.vcell dd{margin:0; font-size:17.5px; line-height:1.66}
+.vcell dd b{font-weight:600}
+.vcell-full{grid-column:1 / -1}
+.rate{display:inline-flex; align-items:center; gap:4px; font-family:var(--sans);
+      font-size:15px; color:var(--mute); vertical-align:-1px}
+.rate i{width:13px; height:13px; border:1px solid var(--faint); display:block}
+.rate i.on{background:var(--accent); border-color:var(--accent)}
+.rate em{font-style:normal; margin-left:9px; letter-spacing:0}
+
+/* ---------- 标题层级（章 1.9× / 节 1.5× / 小节 1.2×） ---------- */
+h2{font-family:var(--sans); font-size:36px; font-weight:700; line-height:1.32;
+   letter-spacing:-.012em; margin:82px 0 6px; padding-top:28px;
+   border-top:2px solid var(--ink)}
+h2 .no{display:block; font-size:17px; font-weight:600; color:var(--accent);
+       letter-spacing:.1em; font-variant-numeric:tabular-nums; margin-bottom:6px}
+h2 .sub{display:block; font-size:16px; font-weight:400; color:var(--mute); margin-top:10px;
+        letter-spacing:0; line-height:1.6}
+h3{font-family:var(--sans); font-size:28px; font-weight:600; line-height:1.42;
+   margin:52px 0 12px; letter-spacing:-.008em}
+h4{font-family:var(--sans); font-size:23px; font-weight:600; line-height:1.5; margin:38px 0 10px}
+h2 + p, h3 + p, h4 + p{margin-top:8px}
+
+/* ---------- 正文 ---------- */
+p{margin:0 0 20px}
+strong,b{font-weight:600}
+a{color:var(--accent); text-decoration:none; border-bottom:1px solid rgba(166,61,47,.3)}
+a:hover{border-bottom-color:var(--accent)}
+.num{font-variant-numeric:tabular-nums; font-feature-settings:"tnum"}
+mark{background:var(--accent-soft); color:var(--ink); padding:0 4px}
+.metrics{font-family:var(--sans); font-size:15.5px; line-height:2; color:var(--ink-2);
+         margin:0 0 20px}
+.metrics b{color:var(--ink)}
+
+/* ---------- 来源标记（单色梯度，不用第二种色相） ---------- */
+.src{font-family:var(--sans); font-size:12.5px; font-weight:600; letter-spacing:.08em;
+     padding:2px 9px; margin-right:9px; vertical-align:2px; white-space:nowrap}
+.src-v{background:var(--ink); color:var(--paper)}
+.src-c{background:var(--mute); color:#fff}
+.src-m{border:1px solid var(--faint); color:var(--mute)}
+
+/* ---------- 判定标签 ---------- */
+.verd{font-family:var(--sans); font-size:13.5px; font-weight:700; letter-spacing:.06em;
+      padding:3px 10px; white-space:nowrap}
+.verd-no{background:var(--accent); color:#fff}
+.verd-tight{background:var(--panel-2); color:var(--accent); border:1px solid var(--accent)}
+.verd-ok{background:var(--panel-2); color:var(--ink-2); border:1px solid var(--rule)}
+
+/* ---------- 时间戳 ---------- */
+.ts{font-family:var(--sans); font-size:14px; font-variant-numeric:tabular-nums;
+    color:var(--mute); border-bottom:1px dotted var(--faint); text-decoration:none;
+    padding:0 2px; white-space:nowrap}
+.ts:hover{color:var(--accent); border-bottom-color:var(--accent)}
+
+/* ---------- 表格 ---------- */
+.tw{margin:26px 0 30px}
+table{border-collapse:collapse; width:100%; font-family:var(--sans); font-size:15.5px;
+      line-height:1.68}
+th{text-align:left; font-weight:600; font-size:13px; letter-spacing:.06em; color:var(--mute);
+   text-transform:uppercase; border-bottom:1.5px solid var(--ink); padding:0 18px 10px 0}
+td{border-bottom:1px solid var(--rule); padding:13px 18px 13px 0; vertical-align:top}
+td:last-child,th:last-child{padding-right:0}
+tbody tr:hover{background:var(--panel)}
+td.n{font-variant-numeric:tabular-nums; white-space:nowrap}
+
+/* ---------- 图表 ---------- */
+figure{margin:34px 0 38px}
+figcaption{font-family:var(--sans); font-size:14px; line-height:1.72; color:var(--mute);
+           margin-top:14px}
+figcaption b{color:var(--ink-2); font-weight:600}
+
+/* 条形（无边框、无底色容器） */
+.bars{display:grid; gap:var(--gap-in)}
+.bar{display:grid; grid-template-columns:11em 1fr auto; gap:0 16px; align-items:center;
+     font-family:var(--sans); font-size:14.5px}
+.bar .k{color:var(--ink-2)}
+.track{height:16px; background:var(--panel-2); position:relative}
+.fill{height:100%; display:block}
+.fill-a{background:var(--accent)}
+.fill-b{background:var(--mute)}
+.fill-c{background:var(--faint)}
+.bar .v{font-variant-numeric:tabular-nums; color:var(--ink); font-weight:600;
+        min-width:3.8em; text-align:right}
+
+/* 小倍数图（N 簇 × 3 指标） */
+.small-multiples{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:30px 40px}
+.sm{display:grid; gap:7px; align-content:start;
+    border-top:2px solid var(--rule); padding-top:14px}
+.sm-name{font-family:var(--sans); font-size:16px; font-weight:600; line-height:1.4;
+         margin-bottom:2px}
+.sm-name em{font-style:normal; color:var(--accent); font-variant-numeric:tabular-nums}
+.sm-row{display:grid; grid-template-columns:3.8em 1fr 3.4em; gap:10px; align-items:center;
+        font-family:var(--sans); font-size:13.5px; color:var(--mute)}
+.sm-row .t{height:11px; background:var(--panel-2); position:relative}
+.sm-row .v{font-variant-numeric:tabular-nums; text-align:right}
+.sm-type{font-family:var(--sans); font-size:13.5px; color:var(--mute); margin-top:6px}
+.sm-type.hot{color:var(--accent); font-weight:600}
+
+/* ---------- 引言块 ---------- */
+.pull{border-left:3px solid var(--accent); padding:3px 0 3px 26px; margin:34px 0;
+      font-size:21px; line-height:1.68; color:var(--ink)}
+.pull cite{display:block; font-family:var(--sans); font-size:14px; font-style:normal;
+           color:var(--mute); margin-top:12px; letter-spacing:.02em}
+
+/* ---------- 折叠（打印时自动全展开） ---------- */
+details{border-top:1px solid var(--rule); margin:0}
+details:last-of-type{border-bottom:1px solid var(--rule)}
+summary{font-family:var(--sans); font-size:16.5px; font-weight:600; cursor:pointer;
+        padding:16px 0; list-style:none; display:flex; gap:14px; align-items:baseline}
+summary::-webkit-details-marker{display:none}
+summary::after{content:"展开"; font-size:13px; font-weight:400; color:var(--mute);
+               margin-left:auto; letter-spacing:.06em}
+details[open] summary::after{content:"收起"}
+summary .tag{font-size:12.5px; color:var(--accent); font-variant-numeric:tabular-nums}
+details .body{padding:0 0 26px}
+details .body p:last-child{margin-bottom:0}
+
+/* ---------- 提示条（局限声明等） ---------- */
+.caveat{background:var(--panel); padding:22px 26px; margin:28px 0; font-size:17px;
+        line-height:1.72; color:var(--ink-2)}
+.caveat b{color:var(--accent)}
+
+/* ---------- 页脚 ---------- */
+footer{margin-top:88px; padding-top:28px; border-top:2px solid var(--ink);
+       font-family:var(--sans); font-size:14px; color:var(--mute); line-height:1.9}
+
+/* ==========================================================================
+   打印：与屏幕同比例 —— 同一套样式、同一个宽度比例，PDF 只是换个纸张
+   A4 210mm − 左右各 25mm = 160mm 内容宽，11pt 正文 → 41 字/行（与屏幕一致）
+   ========================================================================== */
+@media print{
+  @page{size:A4; margin:18mm 25mm}
+  body{background:#fff; font-size:11pt; line-height:1.78}
+  .page{width:100%; max-width:none; padding:0}
+  .masthead{padding-top:0}
+  /* 显式锁定多列布局，避免打印视口宽度触发窄屏规则 */
+  .verdict{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .small-multiples{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .bar{grid-template-columns:11em 1fr auto}
+  .sm-row{grid-template-columns:3.8em 1fr 3.4em}
+
+  /* 标题不许落在页尾；块级不许被切断；长表格按行分页并重复表头 */
+  h1,h2,h3,h4,summary{break-after:avoid; page-break-after:avoid}
+  figure,.pull,.caveat,.bars,.sm,.vcell,details,blockquote,figcaption{
+    break-inside:avoid; page-break-inside:avoid}
+  /* 高个子图表允许跨页，否则会把整页顶空 */
+  figure.tall{break-inside:auto; page-break-inside:auto}
+  .small-multiples{break-inside:auto; page-break-inside:auto}
+  .tw{break-inside:auto; page-break-inside:auto}
+  tr,td,th{break-inside:avoid; page-break-inside:avoid}
+  thead{display:table-header-group}
+
+  /* 折叠区全部展开 —— PDF 必须能看到 HTML 里被折叠的全部内容 */
+  details{border-color:#bbb}
+  details > .body{display:block !important}
+  details > summary{cursor:default}
+  summary::after{content:""}
+  summary::before{display:none}
+
+  /* 链接去装饰（打印件不能点，靠时间戳文字定位） */
+  a{color:var(--ink); border:0}
+  .ts{color:var(--ink-2); border-bottom:0}
+
+  /* 保留底色：条形图、来源标记、判定标签、定性卡 */
+  .verdict,.caveat,details[open]{-webkit-print-color-adjust:exact; print-color-adjust:exact}
+  .verdict{background:#F4F2ED !important}
+  .src-v{background:#1F2227 !important; color:#fff !important;
+    -webkit-print-color-adjust:exact; print-color-adjust:exact}
+  .src-c{background:#6E7681 !important; color:#fff !important;
+    -webkit-print-color-adjust:exact; print-color-adjust:exact}
+  .src-m{border-color:#9AA1A9 !important; color:#6E7681 !important}
+  .verd-no{background:#A63D2F !important; color:#fff !important;
+    -webkit-print-color-adjust:exact; print-color-adjust:exact}
+  .verd-tight{background:#EDEAE3 !important; color:#A63D2F !important;
+    -webkit-print-color-adjust:exact; print-color-adjust:exact}
+  .verd-ok{background:#EDEAE3 !important; color:#464C55 !important;
+    -webkit-print-color-adjust:exact; print-color-adjust:exact}
+  mark{background:#F0E4E0 !important; -webkit-print-color-adjust:exact;
+    print-color-adjust:exact}
+  .fill,.track,.rate i,.sm-row .t{-webkit-print-color-adjust:exact;
+    print-color-adjust:exact}
+  table{font-size:10pt}
+}
+@media screen and (max-width:860px){
+  body{font-size:17px}
+  h1{font-size:30px}
+  h2{font-size:26px}
+  h3{font-size:21px}
+  h4{font-size:19px}
+  .standfirst{font-size:18px}
+  .verdict{grid-template-columns:1fr; padding:22px}
+  .small-multiples{grid-template-columns:1fr; gap:24px}
+  .bar{grid-template-columns:1fr; gap:4px}
+  .pull{font-size:18px}
+}
+</style>
+</head>
+<body>
+<div class="page">
+
+<!-- ============================ 报头 ============================ -->
+<header class="masthead">
+  <p class="kicker">视频数据分析报告</p>
+  <h1>当内地牛马去香港打工：一条 83 秒的段子，和它引爆的 2,953 条对账</h1>
+  <p class="standfirst">
+    这不是一条关于香港就业的视频，信息量接近零——但它意外地成了一个<b>大规模「香港薪资对账现场」</b>：
+    观众自己贴出政府统计处原文、逐项算出深港通勤成本、把片中的每个数字逐条打假。
+    <b>真正值得读的是评论区，不是视频。</b>
+  </p>
+  <p class="meta">
+    <span>BV1JHYg6yEPY</span>
+    <span>UP 主 <b>无奈の老王君</b></span>
+    <span>时长 <b>1 分 23 秒</b></span>
+    <span>发布 <b>2026-09-12</b></span>
+    <span>播放 <b>941,586</b></span>
+    <span>点赞 <b>19,218</b></span>
+    <span>投币 <b>259</b></span>
+    <span>评论 <b>2,953</b></span>
+    <span>分析于 <b>2026-09-20</b></span>
+    <span>取样 <b>热度前 620 条（21.0%）</b></span>
+  </p>
+</header>
+
+<!-- ============================ 定性区 ============================ -->
+<section class="bleed">
+  <dl class="verdict">
+    <div class="vcell">
+      <dt>视频类型</dt>
+      <dd>AI 换脸短剧 · 83 秒段子<br><span class="rate">数据侧写：赞／币比 74 : 1，评论占赞数 15% —— 典型的情绪型流量内容</span></dd>
+    </div>
+    <div class="vcell">
+      <dt>主题</dt>
+      <dd>内地求职者赴港面试的「薪资爽文」：月薪 5,000 一路被抬到年入百万</dd>
+    </div>
+    <div class="vcell">
+      <dt>最核心主张</dt>
+      <dd><b>学历可以直接兑换高薪</b>——全片涨薪的唯一依据就是「你这个学历」四个字</dd>
+    </div>
+    <div class="vcell">
+      <dt>说得对不对</dt>
+      <dd><span class="verd verd-no">核心逻辑不成立</span><br>
+      8 项数字中 <b>4 项被推翻</b>、<b>2 项要收紧</b>、<b>1 项基本可信</b>、1 项为修辞</dd>
+    </div>
+    <div class="vcell vcell-full">
+      <dt>价值在哪</dt>
+      <dd>价值几乎全在评论区。这是目前能找到的、中文互联网上关于「内地人赴港工作真实成本」最密集的一手讨论：官方统计原文、逐项算过的深港通勤成本、在港者的反向证词、中介路径的集体警告。</dd>
+    </div>
+    <div class="vcell">
+      <dt>视频本身价值</dt>
+      <dd><span class="rate"><i class="on"></i><i></i><i></i><i></i><i></i><em>1 / 5 · 可忘掉</em></span></dd>
+    </div>
+    <div class="vcell">
+      <dt>评论区价值</dt>
+      <dd><span class="rate"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i><em>4 / 5 · 值得存档，重点看第 4 章</em></span></dd>
+    </div>
+  </dl>
+</section>
+
+<!-- ============================ 一 ============================ -->
+<h2><span class="no">01</span><span>视频概览与定性<span class="sub">它是什么、说了什么、站不站得住</span></span></h2>
+
+<h3>1.1 它属于哪一类视频</h3>
+<p><span class="src src-m">我推断</span>判断依据是三个可量化的比值，在读字幕之前就能定性：</p>
+
+<figure class="bleed">
+  <div class="bars">
+    <div class="bar"><span class="k">正经技术内容（参照）</span>
+      <span class="track"><span class="fill fill-b" style="width:74%"></span></span>
+      <span class="v">74.1%</span></div>
+    <div class="bar"><span class="k">本条 · 83 秒段子</span>
+      <span class="track"><span class="fill fill-a" style="width:1.35%"></span></span>
+      <span class="v">1.35%</span></div>
+  </div>
+  <figcaption><b>币／赞比</b>（投币 ÷ 点赞）。投币是 B站唯一有成本的认可动作，点赞是零成本的。
+  参照期一条正经技术内容的币／赞比是 <span class="num">74.1%</span>，本条是 <span class="num">1.35%</span>——
+  相差 <b>55 倍</b>。观众点赞的是「好笑」，不是「值得留存」。这一个比值在花力气读字幕之前就说明：
+  这条视频的信息价值低，重心应当移到评论区。</figcaption>
+</figure>
+
+<h3>1.2 视频的核心主张与它的隐含前提</h3>
+<p><span class="src src-v">视频说</span>内地月薪 5,000 的求职者到中环面试，被雇主从「想要 1 万」一路抬到「一口价 5 万 5、加奖金到手 8 万、一年 100 万」，收尾是「没有试用期、准备签终身合同」。</p>
+<p><span class="src src-m">我推断</span>这条链条要成立，必须同时满足三个前提：<b>①</b> 薪资可以随地理平移；<b>②</b> 学历是唯一的定价变量；<b>③</b> 香港存在终身雇佣制度。三个前提在片中都未被论证，而它们恰好全部是错的——第一条被评论区整体推翻（4.3），第三条与香港雇佣实务不符（6.3）。</p>
+
+<h3>1.3 说得对不对：逐项判定</h3>
+<div class="tw">
+<table>
+  <thead><tr><th style="width:34%">视频主张</th><th style="width:44%">权威口径</th><th>判定</th></tr></thead>
+  <tbody>
+    <tr><td>base 月薪 5.5 万</td>
+        <td>全港雇员月工资 <span class="num">P90 = 51,300</span>（2025 年 5–6 月）</td>
+        <td><span class="verd verd-tight">要收紧</span> 已高于全港 90 分位</td></tr>
+    <tr><td>到手 8 万 / 月、年入 100 万</td>
+        <td>年薪百万需 <span class="num">83,300/月</span>，远高于 P90</td>
+        <td><span class="verd verd-no">被推翻</span> 约前 3–5%</td></tr>
+    <tr><td>「在香港遍地都是百万年薪」</td>
+        <td>同上；且高才通获批续签者月薪中位数 4 万，约 1/4 达 8 万</td>
+        <td><span class="verd verd-no">被推翻</span></td></tr>
+    <tr><td>没有试用期</td>
+        <td>多名在港者：试用期 1–3 个月普遍存在</td>
+        <td><span class="verd verd-no">被推翻</span></td></tr>
+    <tr><td>签终身合同</td>
+        <td>香港无终身雇佣法定概念；永久职位仍可依通知期解约</td>
+        <td><span class="verd verd-no">被推翻</span></td></tr>
+    <tr><td>中环随便租一间一两万</td>
+        <td>劏房／分隔房 <span class="num">8,000–11,000</span> 可拿下；公屋约 2,000</td>
+        <td><span class="verd verd-tight">要收紧</span> 核心区成立，非核心区虚高</td></tr>
+    <tr><td>楼下保安一个月 1 万 5</td>
+        <td>保安三班倒 1.5 万、两班倒 1.7 万——视频此处反而偏保守</td>
+        <td><span class="verd verd-ok">基本可信</span></td></tr>
+  </tbody>
+</table>
+</div>
+<p><span class="src src-m">我推断</span>请注意最后一行的含义：视频<b>并不是「全部往高里编」</b>，而是<b>只在高薪那一端编</b>。保这个数字没吹，租金量级也没吹——被夸大的全部集中在「薪资上限」这一处。这是段子的构造方式，不是信息错误。</p>
+
+<h3>1.4 价值评估：分人群给结论</h3>
+<div class="tw">
+<table>
+  <thead><tr><th style="width:32%">如果你是</th><th>建议</th></tr></thead>
+  <tbody>
+    <tr><td>只是图一乐</td><td>看前 30 秒够了，<b>不必往下读</b></td></tr>
+    <tr><td>在认真考虑赴港工作 / 留港</td>
+        <td><b>跳过视频，直接读第 4 章</b>。那里有官方统计原文、逐项算过的深港通勤成本、在港者的反向证词</td></tr>
+    <tr><td>想找中介 / 劳务派遣赴港</td>
+        <td><b>重点看 4.5</b>，评论区对这条路的警告最集中且高度一致</td></tr>
+    <tr><td>纯想看「怎么判断一条视频的信息价值」</td>
+        <td>读 1.1 的币／赞比 + 6.3 的「只在高薪端编造」——这两条可以迁移到任何视频</td></tr>
+  </tbody>
+</table>
+</div>
+
+<!-- ============================ 二 ============================ -->
+<h2><span class="no">02</span><span>视频核心总结<span class="sub">绪论 → 本论 → 结论，以及链条在哪里断掉</span></span></h2>
+
+<h3>2.1 绪论：它立了什么靶子</h3>
+<p>开场 11 秒完成建置：内地月薪 5,000 的求职者站到中环街头，先由对方抛出「附近租一间都得一两万」制造高成本预期，再由求职者自报底牌 <span class="q">我在内地一个月 5000</span>（<a class="ts" href="https://www.bilibili.com/video/BV1JHYg6yEPY/?t=11" target="_blank" rel="noopener">00:11</a>）。</p>
+<p><span class="src src-m">我推断</span>这 11 秒的设计意图很明确：<b>先立一个「巨大的落差」</b>——生活成本高、自身收入低——好让后面的涨薪显得更加戏剧。靶子不是香港就业市场，是观众对这组反差的情绪反应。</p>
+
+<h3>2.2 本论：83 秒的推进链条</h3>
+<div class="tw">
+<table>
+  <thead><tr><th style="width:13%">时间</th><th style="width:40%">台词</th><th>在链条中承担什么</th></tr></thead>
+  <tbody>
+    <tr><td class="n"><a class="ts" href="https://www.bilibili.com/video/BV1JHYg6yEPY/?t=7" target="_blank" rel="noopener">00:07</a></td>
+        <td>附近这里是中环哦，随便租一间都得一两万哦</td><td>立成本，为后面的「倒贴上班」铺路</td></tr>
+    <tr><td class="n"><a class="ts" href="https://www.bilibili.com/video/BV1JHYg6yEPY/?t=11" target="_blank" rel="noopener">00:11</a></td>
+        <td>我在内地一个月 5000</td><td><b>全片最关键的锚点数字</b></td></tr>
+    <tr><td class="n"><a class="ts" href="https://www.bilibili.com/video/BV1JHYg6yEPY/?t=20" target="_blank" rel="noopener">00:20</a></td>
+        <td>楼下保安一个月都 1 万 5 了</td><td>视频里唯一相对靠谱的数字</td></tr>
+    <tr><td class="n"><a class="ts" href="https://www.bilibili.com/video/BV1JHYg6yEPY/?t=28" target="_blank" rel="noopener">00:28</a></td>
+        <td>你这个学历要多给钱的啦 → 那我要 3 万</td><td><b>涨价机制登场：学历</b>，仍无岗位信息</td></tr>
+    <tr><td class="n"><a class="ts" href="https://www.bilibili.com/video/BV1JHYg6yEPY/?t=38" target="_blank" rel="noopener">00:38</a></td>
+        <td>一口价 5 万 5</td><td>薪资从 5,000 跳升 <b>11 倍</b>，无任何依据</td></tr>
+    <tr><td class="n"><a class="ts" href="https://www.bilibili.com/video/BV1JHYg6yEPY/?t=56" target="_blank" rel="noopener">00:56</a></td>
+        <td>一个月到手差不多 8 万了</td><td>叠加奖金，制造第二段跳升</td></tr>
+    <tr><td class="n"><a class="ts" href="https://www.bilibili.com/video/BV1JHYg6yEPY/?t=62" target="_blank" rel="noopener">01:02</a></td>
+        <td>在香港遍地都是百万年薪的嘛</td><td><b>被评论区打假最狠的一句</b></td></tr>
+    <tr><td class="n"><a class="ts" href="https://www.bilibili.com/video/BV1JHYg6yEPY/?t=66" target="_blank" rel="noopener">01:06</a></td>
+        <td>你都没见过 100 万的吗 → 清明上坟的时候</td><td>唯一的结构性笑点（冥币梗）</td></tr>
+    <tr><td class="n"><a class="ts" href="https://www.bilibili.com/video/BV1JHYg6yEPY/?t=76" target="_blank" rel="noopener">01:16</a></td>
+        <td>没有试用期…我们还准备跟你签个终身合同呢</td><td><b>抛出全片最大的两个虚假福利</b></td></tr>
+  </tbody>
+</table>
+</div>
+
+<h3>2.3 结论：最终主张</h3>
+<p><span class="src src-v">视频说</span>你不需要任何岗位、技能或行业信息——只要有学历，内地的 5,000 到香港就能变成 100 万。</p>
+
+<h3>2.4 链条断在哪三处</h3>
+<p><b>断点一：论证结构缺失。</b> <span class="q">你这个学历要多给钱的啦</span> 是全片唯一的涨价理由，但「什么学历」从未说明。雇主自己前一句刚说「你要租个房都 1 万了…你打算倒贴上班呗」，下一句直接把工资抬到 5 万 5，中间没有任何过渡（<a class="ts" href="https://www.bilibili.com/video/BV1JHYg6yEPY/?t=33" target="_blank" rel="noopener">00:33–00:36</a>）。</p>
+<p><b>断点二：同一数字 25 秒内自相矛盾。</b> 租金在 <a class="ts" href="https://www.bilibili.com/video/BV1JHYg6yEPY/?t=8" target="_blank" rel="noopener">00:08</a> 是「一两万」，到 <a class="ts" href="https://www.bilibili.com/video/BV1JHYg6yEPY/?t=33" target="_blank" rel="noopener">00:33</a> 变成「1 万」——因为需要用「1 万」去论证倒贴。</p>
+<p><b>断点三：把工资当成地理常数。</b> 视频隐含「换个城市，工资按倍数平移」。真实的工资是「个人能力 × 劳动力市场供需」的乘积，换城市换的是后者，前者不变。这一条是评论区反驳的核心（见 4.3）。</p>
+
+<!-- ============================ 三 ============================ -->
+<h2><span class="no">03</span><span>评论区概览与总结<span class="sub">观众在说什么，以及各类观点各占多少份量</span></span></h2>
+
+<h3>3.1 评论结构侧写</h3>
+<p>全站 <span class="num">2,953</span> 条评论，本次取热度前 <span class="num">620</span> 条去重（含 225 条楼中楼），覆盖 <span class="num">21.0%</span>。热度分布：≥100 赞 26 条 / 50–99 赞 13 条 / 20–49 赞 36 条 / 5–19 赞 84 条 / 1–4 赞 263 条 / <b>0 赞 198 条</b>。</p>
+<div class="caveat">
+  <b>关于取样比例的一句实话。</b> 你需要知道的一个事实是：仅顶层评论里就有 <b>28.6% 是 0 赞</b>。
+  热度排序本身就是价值筛选，机械取到 20% 时尾部已大量是附和与复制粘贴（例如第 358 条把最高赞第 1 条一字不差重发了一遍）。
+  <b>真正有用的信息集中在前 80 条左右。</b>
+</div>
+<p><span class="src src-m">我推断</span>评论区文字是<b>用户原生输入</b>，不存在 AI 字幕的误转问题——<b>引文可靠性高于视频字幕</b>。这是本次挖掘最重要的方法论前提。</p>
+
+<h3>3.2 观点谱：六个簇，三个轴</h3>
+<p>把热度前 70 条中的 55 条有效评论逐条归类，得到六个观点簇。每个簇用三个<b>互相独立</b>的指标刻画：</p>
+<p class="metrics">
+<b>普遍度</b>＝该簇条数 ÷ 有效样本条数（多少人<b>提到</b>）<br>
+<b>认同度</b>＝该簇点赞合计 ÷ 全部点赞合计（多少人<b>认同</b>）<br>
+<b>争议度</b>＝该簇楼中楼回复合计 ÷ 全部回复合计（多少人<b>愿意为它争</b>）
+</p>
+
+<figure class="bleed tall">
+  <div class="small-multiples">
+    <div class="sm">
+      <div class="sm-name">A 物价与生活成本清单</div>
+      <div class="sm-row"><span>普遍</span><span class="t"><span class="fill fill-b" style="display:block;width:29.1%"></span></span><span class="v">29.1%</span></div>
+      <div class="sm-row"><span>认同</span><span class="t"><span class="fill fill-a" style="display:block;width:43.6%"></span></span><span class="v">43.6%</span></div>
+      <div class="sm-row"><span>争议</span><span class="t"><span class="fill fill-a" style="display:block;width:49.9%"></span></span><span class="v">49.9%</span></div>
+      <div class="sm-type hot">三轴第一 · 全场唯一</div>
+    </div>
+    <div class="sm">
+      <div class="sm-name">B 工资实况与官方数据</div>
+      <div class="sm-row"><span>普遍</span><span class="t"><span class="fill fill-b" style="display:block;width:21.8%"></span></span><span class="v">21.8%</span></div>
+      <div class="sm-row"><span>认同</span><span class="t"><span class="fill fill-b" style="display:block;width:26.0%"></span></span><span class="v">26.0%</span></div>
+      <div class="sm-row"><span>争议</span><span class="t"><span class="fill fill-c" style="display:block;width:13.0%"></span></span><span class="v">13.0%</span></div>
+      <div class="sm-type">共识型 · 摆数据，不吵架</div>
+    </div>
+    <div class="sm">
+      <div class="sm-name">C 逻辑反驳：换城市≠换收入</div>
+      <div class="sm-row"><span>普遍</span><span class="t"><span class="fill fill-b" style="display:block;width:20.0%"></span></span><span class="v">20.0%</span></div>
+      <div class="sm-row"><span>认同</span><span class="t"><span class="fill fill-b" style="display:block;width:20.0%"></span></span><span class="v">20.0%</span></div>
+      <div class="sm-row"><span>争议</span><span class="t"><span class="fill fill-a" style="display:block;width:30.0%"></span></span><span class="v">30.0%</span></div>
+      <div class="sm-type hot">争议度第二 · 主战场</div>
+    </div>
+    <div class="sm">
+      <div class="sm-name">F 对视频本身的定性</div>
+      <div class="sm-row"><span>普遍</span><span class="t"><span class="fill fill-b" style="display:block;width:18.2%"></span></span><span class="v">18.2%</span></div>
+      <div class="sm-row"><span>认同</span><span class="t"><span class="fill fill-c" style="display:block;width:8.5%"></span></span><span class="v">8.5%</span></div>
+      <div class="sm-row"><span>争议</span><span class="t"><span class="fill fill-c" style="display:block;width:3.9%"></span></span><span class="v">3.9%</span></div>
+      <div class="sm-type">条数不低但认同度低 · 情绪型刷屏</div>
+    </div>
+    <div class="sm">
+      <div class="sm-name">D 深港通勤与居住方案</div>
+      <div class="sm-row"><span>普遍</span><span class="t"><span class="fill fill-c" style="display:block;width:5.5%"></span></span><span class="v">5.5%</span></div>
+      <div class="sm-row"><span>认同</span><span class="t"><span class="fill fill-c" style="display:block;width:1.2%"></span></span><span class="v">1.2%</span></div>
+      <div class="sm-row"><span>争议</span><span class="t"><span class="fill fill-c" style="display:block;width:2.7%"></span></span><span class="v">2.7%</span></div>
+      <div class="sm-type hot">数据上最边缘，实操价值却最高</div>
+    </div>
+    <div class="sm">
+      <div class="sm-name">E 中介·身份·学历门槛</div>
+      <div class="sm-row"><span>普遍</span><span class="t"><span class="fill fill-c" style="display:block;width:5.5%"></span></span><span class="v">5.5%</span></div>
+      <div class="sm-row"><span>认同</span><span class="t"><span class="fill fill-c" style="display:block;width:0.8%"></span></span><span class="v">0.8%</span></div>
+      <div class="sm-row"><span>争议</span><span class="t"><span class="fill fill-c" style="display:block;width:0.5%"></span></span><span class="v">0.5%</span></div>
+      <div class="sm-type hot">同上 · 被热度排序埋没</div>
+    </div>
+  </div>
+  <figcaption><b>怎么读：</b>三个指标互相独立——<b>普遍度</b>是「多少人提到」，<b>认同度</b>是「多少人认同」，<b>争议度</b>是「多少人愿意为它争」。一个观点可以很多人提但没人点赞（边缘），也可以少数人提但一呼百应（共识）。三者各自归一化，因此<b>不能横向相加</b>。<br><b>口径：</b>热度前 70 条中剔除 15 条纯表情 / 无关 / 无效表态后的 <b>55 条有效样本</b>。</figcaption>
+</figure>
+
+<h3>3.3 一个反常发现：热度样本会淹没有价值的低频观点</h3>
+<p><span class="src src-m">我推断</span>这是本次统计最值得记录的一条，也是原笔记漏掉的：</p>
+<div class="pull">
+  D（深港通勤）与 E（中介路径）在三个轴上全部垫底，合计只占条数的 <span class="num">11%</span>。
+  但按内容质量读，它们恰是<b>实操价值最高的两簇</b>——D 里有一份把票价、班次、汇率、三餐全算进去的完整成本模型；
+  E 是视频完全没碰、却对「真想过去的人」最关键的一段。
+</div>
+<p>为什么会这样？因为<b>热度排序奖励的是「短、狠、可表态」</b>，惩罚「长、细、需要条件」。</p>
+<p>一份物价清单可以让人秒懂并点赞；一份逐项列出的通勤测算，读它就要花两分钟，读完还未必能一句话反驳。于是后者永远沉在榜单下面。</p>
+<div class="caveat">
+  <b>方法上的含义。</b>如果只按热度取样并按热度排序阅读，你会系统性地漏掉「高成本但高价值」的内容。
+  正确的做法是：<b>热度用来选样本，内容密度用来排序。</b>本报告第 4 章即按后者组织——
+  D、E 两簇虽然数据最小，仍与 A、B 并列全节展开。
+</div>
+
+<!-- ============================ 四 ============================ -->
+<h2><span class="no">04</span><span>评论区核心总结<span class="sub">逐簇展开：每类观点的绪论 → 本论 → 结论，以及它与视频的对照</span></span></h2>
+
+<h3>4.1 A 簇 · 物价与生活成本清单</h3>
+<p><b>绪论。</b>这一簇不反驳视频，它做的是另一件事：<b>把幻觉换算成具体数字</b>。最高赞（7,199 赞 / 908 条回复）是一份完全不带情绪的物价表。</p>
+<div class="pull">
+  给大家一个消费参考：可乐 8–10 港币；一碗馄饨面 40 港币；咖喱猪扒饭 50–60；海南鸡饭 60 左右。
+  <cite>@与我签约吧少年 · 7,199 赞 · 全站最高赞</cite>
+</div>
+<p><b>本论。</b>为什么是这份清单拿到了最高赞、且拿走了全站近一半的回复量？因为它提供了<b>可验证的最小单位</b>——拿任何一个已知的香港餐饮价，就能自己推算整本账。观众不需要相信任何人，只需要相信自己去过的那家店。</p>
+<p>它也被自己的评论区修正了：有人说「香港物价没这么离谱，现在可乐通常 6–7 蚊」，也有人回「中环一碗云吞面都 100 块了」——<b>这两说不冲突，它们说明的是「中环与非核心区差 2–3 倍」</b>。</p>
+<p><b>结论。</b>物价之争的真问题不在数据，在<b>比较基准</b>。把「物价约为内地 3–4 倍」与「上海 1.5 倍、二线 2 倍」放在一起看，差异不在谁算错，而在于：<b>拿内地一线比是 1.5–2 倍，拿内地二三线比才是 3–4 倍。任何「香港物价是内地 N 倍」的说法，不交代基准城市就等于没说。</b>这也是评论区争论激烈却各说各话的根本原因。</p>
+<p><b>与视频对照。</b><span class="verd verd-tight">要收紧</span> 视频的「中环随便租一间一两万」在核心区成立，但忽略了劏房 8,000–11,000、公屋约 2,000 这两档——而后者才是本地人实际在用的选项。</p>
+
+<h3>4.2 B 簇 · 工资实况与官方数据</h3>
+<p><b>绪论。</b>这一簇的特点是<b>直接搬官方原文</b>。一条 83 秒段子的评论区里，出现了逐字准确的政府统计处公告。</p>
+<details>
+  <summary><span class="tag">最高赞官数据搬运</span>特区政府统计处原文（@Sweet纸糖）</summary>
+  <div class="body">
+    <p>「二零二五年五月至六月本港雇员的每月工资中位数为 <b>$21,200</b>，较二零二四年同期的中位数（$20,500）高 3.5%。第 10、第 25、第 75 及第 90 个百分位数分别为 <b>$11,000、$15,300、$33,000 及 $51,300</b>。每小时工资中位数为 $85.7…」</p>
+    <p><span class="src src-m">我推断</span>我已核对：与政府统计处原文<b>逐字一致</b>。</p>
+  </div>
+</details>
+<details>
+  <summary><span class="tag">多源互证</span>其他高可信度工资口径</summary>
+  <div class="body">
+    <div class="tw"><table>
+      <thead><tr><th style="width:56%">说法</th><th style="width:14%">赞</th><th>我的判定</th></tr></thead>
+      <tbody>
+        <tr><td>香港普通大学生都係一萬幾到兩萬幾</td><td class="n">304</td><td>与官方「大学学历雇员 20,000–40,000」吻合</td></tr>
+        <tr><td>大部分香港人都只有 2 萬不到</td><td class="n">378</td><td>与中位数 21,200 吻合</td></tr>
+        <tr><td>普通白领 15k–30k；50k 月薪不是 IT 就是管理层，这种公司会找猎头直接挖</td><td class="n">228</td><td>与 P75 = 33,000 吻合，<b>全场最准确的分层描述之一</b></td></tr>
+        <tr><td>我姐港大毕业的现在也才涨到两万八</td><td class="n">495</td><td>落在官方区间内</td></tr>
+        <tr><td>港大 CS 科班刚入职也就 2.5–3 万 HKD</td><td class="n">38</td><td>与官方吻合</td></tr>
+      </tbody>
+    </table></div>
+  </div>
+</details>
+<p><b>本论。</b>这一簇的存在本身就是一个结论：观众的构成足以支撑一场有数据基础的讨论。他们没有停留在「我觉得」，而是去打开了那个 30 秒就能打开的政府网页。</p>
+<p><b>结论。</b>全港雇员工资中位数 <b>21,200</b>、P90 才 <b>51,300</b>。<b>视频里的「5.5 万 base」已经站在全港前 10% 之内，「8 万到手」更是远在 P90 之上</b>——官方未公布到那个区间，按分布形状估算约为前 3–5%。</p>
+<p><b>与视频对照。</b><span class="verd verd-no">被推翻</span> 视频用一个「内地的 5000」直接对接「香港的 100 万」，中间跳过了整个分配曲线。</p>
+
+<h3>4.3 C 簇 · 逻辑反驳：换城市 ≠ 换收入</h3>
+<p><b>绪论。</b>这是评论区占比最大、逻辑最一致的声音，几乎凝成了一句共识句：</p>
+<div class="pull">
+  如果能在香港拿 5 万月薪的人，在内地也不会只拿 5 千。
+  <cite>@黎明克星 · 同一逻辑的最短版本</cite>
+</div>
+<p><b>本论。</b>这条论证之所以被反复说，是因为它精准命中了视频最根本的漏洞：<b>视频把工资当成一个可以随地理平移的常数</b>。而真实的工资是「个人能力 × 劳动力市场供需」的乘积——换城市换的是后者，前者不变。拿 5,000 的人在香港能拿到的，是香港给「同等能力」定价的那一档（评论区给出的口径约 1.5–2.5 万），而不是 8 万。</p>
+<p>另一条同样锋利的结构性论证：</p>
+<div class="pull">
+  世界上不可能存在一个：高收入、高福利、低税收、低物价同时存在的国家。高收入的前提下，门槛和消费就不可能共存。
+  <cite>@滴答滴答滴卡 · 874 赞</cite>
+</div>
+<p><b>结论。</b>这一簇的争议度高达 <span class="num">30.0%</span>（仅次于 A 簇），说明它是一个<b>真正的辩论场</b>而非单向表态。争论集中在「香港到底算不算高薪」这个次级问题上，但<b>对「换城市不能平移收入」这一条，55 条有效样本里没有一条反对</b>。</p>
+<p><b>与视频对照。</b><span class="verd verd-no">核心逻辑被推翻</span> 这是全片最本质的一处失败，比任何单个数字的夸大更严重。</p>
+
+<h3>4.4 D 簇 · 深港通勤与居住方案</h3>
+<p><b>绪论。</b>数据上这一簇只有 3 条（5.5%），但按内容密度它是最重的一簇。触发它的是一条 1,491 赞的提问：<span class="q">可不可以白天去香港上班，晚上回深圳住？</span></p>
+<p><b>本论。</b>有一位用户把它做成了完整测算（原文照引，含票价、班次、汇率、三餐）：</p>
+<div class="pull" style="font-size:16px">
+  罗湖/落马洲过去中环地铁约 1 小时，早上过关 20–30 分钟…费用约 52.2 港币一趟且你每天几乎必迟到。
+  换方案坐高铁，最早 6 点半 7 点到西九龙 87 元，西九龙去中环约 20 分钟，来得及。
+  加上回深圳的 52.2，<b>每天固定开销约 140 港币</b>…月薪 2 万 5，除去固定开销剩 <b>1.25 万</b>，
+  再扣三餐 120 元/天…可用金额约 <b>8–9 千港币</b>，折算人民币约 <b>7,600–7,700</b>。
+  <cite>@小岸九 · 11 赞 · 我复核过后确认整体成立</cite>
+</div>
+<p><span class="src src-m">我推断</span>我把这份测算的每一步拆开验了一次：每天通勤 52.2 + 87 = <span class="num">139.2</span>（与 140 自洽）；25,000 − 12,000 = <span class="num">13,000</span>（与 1.25 万基本一致）；13,000 − 120×30 = <span class="num">9,400</span>（与 8–9 千吻合）；9,400 × 0.854 ≈ <span class="num">8,028</span>（与 7,600–7,700 吻合）。<b>只有「月固定开销 1.2 万」这一项口径偏紧</b>（房租中值 5,000 + 140×22 ≈ 8,080），但量级合理。</p>
+<p>反方也不弱，且都是实测型：<span class="q">我试过一年，福民到元朗算是很近了，八小时上班加差不多四小时通勤，几乎没有个人时间</span>。</p>
+<p><b>结论。</b>深港通勤在数学上成立，在体力上是另一回事。<b>按 22 个工作日算，每月通勤耗时约 88 小时——相当于多上半个多月的班。</b>这不是一个「省钱」方案，是一个<b>用时间换钱</b>的方案，而汇率是 1:1（时间不可再生）。</p>
+<p><b>与视频对照。</b>视频从未提及通勤这一维度。它对「赴港工作」的全部想象止于工资数字。</p>
+
+<h3>4.5 E 簇 · 中介路径与身份门槛</h3>
+<p><b>绪论。</b>这是视频完全没碰、却对「真想过去」的人最关键的一段。3 条内容，态度高度一致。</p>
+<p><b>本论。</b>核心指控有两个：<b>抽成</b>与<b>岗位质量与承诺不符</b>。多条提到中介抽 10–15 个点、存在前置劳务费、「前一个月是白干的」；也有人指出澳门与香港套路几乎一样。同时，「内地学历即使清华也不好找工作」「高薪岗要专业资格证且必须本地大学对口」这两条抬高了门槛的真实图景。</p>
+<p><span class="src src-m">我推断</span>可以给出一个明确的量级判断：<b>中介路径的收益上限（1–2 万的服务业岗）低于走 IANG 直招的下限。</b>这条路径在数学上就不值得走。</p>
+<p><b>结论。</b>视频里「没有试用期、终身合同」的桥段，恰好和评论区对「黑中介画饼」的描述形态相同——<b>很多人把这个段子当成了中介话术的文学化版本</b>。</p>
+<p><b>与视频对照。</b><span class="verd verd-no">视频造成误导</span> 它让「赴港工作」看起来像一次可以裸奔的跃迁，而真实路径有签证、语言、专业资格三重门槛。</p>
+
+<h3>4.6 F 簇 · 对视频本身的定性</h3>
+<p><b>绪论。</b>这一簇条数不低（10 条，18.2%），但认同度只有 8.5%、争议度仅 3.9%——<b>典型的「很多人说，但没人愿意为它吵」</b>。</p>
+<p><b>本论。</b>观点分三派：<b>「幻想吹捧派」</b>认为无脑吹港；<b>「讽刺／反串派」</b>认为收尾的「终身合同」是在暗示这个 offer 本身就不正常；<b>「带节奏派」</b>认为是刻意制造争议换流量。</p>
+<p><span class="src src-m">我推断</span>从结构看最像「AI 爽文段子」，理由有三：① 涨薪零依据、纯靠「学历」二字；② 收尾三连全部是现实的反面，作为「爽点」比作为「讽刺」更自然；③ 同一剧本被多人翻拍、台词一字不改——这是模板化生产内容的特征。<b>但创作者的真实意图无法从 83 秒里确定，标为待确认。</b></p>
+<p><b>结论。</b>这一簇的价值不在它说了什么，而在它<b>低认同 + 低争议的分布形态本身</b>：这是情绪型内容的标准指纹，与 1.1 节币／赞比给出的判断一致。两条独立证据指向同一结论。</p>
+<p><b>与视频对照。</b>不适用——这一簇讨论的对象就是视频本身。</p>
+
+<!-- ============================ 五 ============================ -->
+<h2><span class="no">05</span><span>关键参数与对照时间点<span class="sub">速查表：想核对哪一句，直接点时间戳</span></span></h2>
+<div class="tw">
+<table>
+  <thead><tr><th style="width:16%">项目</th><th style="width:26%">视频说法</th><th style="width:12%">时间戳</th><th>核对建议</th></tr></thead>
+  <tbody>
+    <tr><td>中环租金</td><td>随便租一间都得一两万</td>
+        <td class="n"><a class="ts" href="https://www.bilibili.com/video/BV1JHYg6yEPY/?t=8" target="_blank" rel="noopener">00:08</a></td>
+        <td><span class="verd verd-tight">要收紧</span> 核心区成立；劏房 8,000–11,000、公屋 2,000 未提</td></tr>
+    <tr><td>保安月薪</td><td>1 万 5</td>
+        <td class="n"><a class="ts" href="https://www.bilibili.com/video/BV1JHYg6yEPY/?t=20" target="_blank" rel="noopener">00:20</a></td>
+        <td><span class="verd verd-ok">基本可信</span> 三班倒 1.5 万 / 两班倒 1.7 万；视频反而偏保守</td></tr>
+    <tr><td>自报底薪</td><td>内地一个月 5000</td>
+        <td class="n"><a class="ts" href="https://www.bilibili.com/video/BV1JHYg6yEPY/?t=11" target="_blank" rel="noopener">00:11</a></td>
+        <td>全片最关键的锚点，也是唯一未被质疑的部分</td></tr>
+    <tr><td>base 月薪</td><td>5 万 5（一口价）</td>
+        <td class="n"><a class="ts" href="https://www.bilibili.com/video/BV1JHYg6yEPY/?t=38" target="_blank" rel="noopener">00:38</a></td>
+        <td><span class="verd verd-tight">要收紧</span> 高于全港 P90 = 51,300</td></tr>
+    <tr><td>到手月薪</td><td>约 8 万</td>
+        <td class="n"><a class="ts" href="https://www.bilibili.com/video/BV1JHYg6yEPY/?t=56" target="_blank" rel="noopener">00:56</a></td>
+        <td><span class="verd verd-no">被推翻</span> 对应高才通获批者中约 1/4 的水平</td></tr>
+    <tr><td>年收入</td><td>约 100 万</td>
+        <td class="n"><a class="ts" href="https://www.bilibili.com/video/BV1JHYg6yEPY/?t=58" target="_blank" rel="noopener">00:58</a></td>
+        <td><span class="verd verd-no">被推翻</span> 需 83,300/月；约全港前 3–5%（估算）</td></tr>
+    <tr><td>试用期</td><td>没有试用期</td>
+        <td class="n"><a class="ts" href="https://www.bilibili.com/video/BV1JHYg6yEPY/?t=74" target="_blank" rel="noopener">01:14</a></td>
+        <td><span class="verd verd-no">被推翻</span> 试用期 1–3 个月普遍存在</td></tr>
+    <tr><td>合同</td><td>终身合同</td>
+        <td class="n"><a class="ts" href="https://www.bilibili.com/video/BV1JHYg6yEPY/?t=76" target="_blank" rel="noopener">01:16</a></td>
+        <td><span class="verd verd-no">被推翻</span> 香港无「终身雇佣」法定概念</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h4>官方数据的对照入口</h4>
+<div class="tw">
+<table>
+  <thead><tr><th style="width:46%">官方指标（2025 年 5–6 月）</th><th>数值（港元）</th></tr></thead>
+  <tbody>
+    <tr><td>雇员每月工资中位数</td><td class="n"><b>21,200</b></td></tr>
+    <tr><td>P10 / P25 / P75 / P90</td><td class="n">11,000 / 15,300 / 33,000 / <b>51,300</b></td></tr>
+    <tr><td>雇员每小时工资中位数</td><td class="n">85.7</td></tr>
+    <tr><td>就业人士每月就业收入中位数</td><td class="n">20,400</td></tr>
+    <tr><td>按职业月收入中位数（2026 Q1，男性）</td>
+        <td class="n">专业人员 50,000 / 辅助专业 28,200 / 文书 20,000 / 服务销售 19,200 / 非技术 15,500</td></tr>
+    <tr><td>法定最低时薪（2026-05-01 起）</td><td class="n">43.1</td></tr>
+  </tbody>
+</table>
+</div>
+
+<!-- ============================ 六 ============================ -->
+<h2><span class="no">06</span><span>内容纠偏<span class="sub">哪些字不能信，以及为什么</span></span></h2>
+
+<h3>6.1 字幕来源与可靠性</h3>
+<p>本片字幕为 <b>B站 AI 字幕</b>（<code>data_source: "ai_subtitle"</code>，<code>language: "ai-zh"</code>，共 54 行），<b>未经人工校对，不能当作已校验的引用</b>。</p>
+<p>好消息是：本片口播几乎全是短句对白，没有专业术语与参数名，因此误转风险远低于技术类视频。逐行通读后只发现三处问题。</p>
+
+<h3>6.2 AI 字幕误转清单</h3>
+<p>只列<b>会导致理解错误或歧义</b>的条目。AI 能自行还原的用词偏差、冗余字、同音替换不在此列——它们不影响你读懂原意，列出来只是噪声。</p>
+<div class="tw">
+<table>
+  <thead><tr><th style="width:22%">字幕写成</th><th style="width:20%">实际应该是</th><th style="width:12%">时间</th><th>为什么必须知道</th></tr></thead>
+  <tbody>
+    <tr><td>一口价 <b>5万55万</b></td><td>5 万 5（55,000）</td>
+        <td class="n"><span class="ts">00:38</span></td>
+        <td><span class="verd verd-no">量级差 10 倍</span> 断句错误。「5万55万」可读成「5 万 5 和 5 万」，也可读成「5 万到 55 万」。结合下一句「这个岗位的薪资呢是可以给你 5 万」才能确认为 55,000</td></tr>
+  </tbody>
+</table>
+</div>
+<details>
+  <summary><span class="tag">已排除</span>不影响理解、因此不列入的误转（2 处）</summary>
+  <div class="body">
+    <p>「<b>内陆</b>上来的」→「<b>内地</b>上来的」：用词错误，句意不变。这是 B站字幕把「内地」写成「内陆」的常见现象。</p>
+    <p>「乱七八糟<b>糟</b>的」→「乱七八糟的」：冗余字，无语义影响。</p>
+    <p><b>这两处不需要回原片核对。</b>列在这里只是让口径完整——你知道我查过，且判断它们不重要。</p>
+  </div>
+</details>
+<p><span class="src src-m">我推断</span>本片不像技术视频那样存在「数字失真」风险，<b>因为片中的数字本身就是虚构的</b>——字幕转写无论多准，都不能把虚构变成事实。</p>
+
+<h3>6.3 视频自身的不自洽</h3>
+<p>租金口径 25 秒内从「一两万」降到「1 万」（<a class="ts" href="https://www.bilibili.com/video/BV1JHYg6yEPY/?t=8" target="_blank" rel="noopener">00:08</a> → <a class="ts" href="https://www.bilibili.com/video/BV1JHYg6yEPY/?t=33" target="_blank" rel="noopener">00:33</a>）；「学历」出现两次却从未说明是什么学历、什么岗位；面试全程普通话，而评论区多名在港者指出香港职场粤语是硬门槛。</p>
+<p><b>最值得记录的一条：视频只在「高薪端」编造。</b>保安 1.5 万没吹，中环租金量级也没吹——被夸大的全部集中在薪资上限。这不是「信息错误」，是<b>段子的构造方式</b>。识别这个模式，比记住任何一个具体数字都有用。</p>
+
+<h3>6.4 纠偏结论</h3>
+<div class="caveat">
+  <b>一概不要采信</b>：5.5 万、8 万、100 万、「没有试用期」、「终身合同」——这五项全部没有现实依据，且与官方统计及在港者证词冲突。<br>
+  <b>唯一相对可信</b>：保安 1.5 万，以及中环租金的量级（但后半段被视频自己改口）。<br>
+  <b>一个替代入口</b>：如果你只想知道「香港到底挣多少」，不要看视频——直接读 4.2，那里有政府统计处原始公告。
+</div>
+
+<!-- ============================ 七 ============================ -->
+<h2><span class="no">07</span><span>延伸发散<span class="sub">视频和评论区都没说的：我的补充、更深一层，以及发散</span></span></h2>
+
+<h3>7.1 补充一：港币收入的真实价值每年可能在缩水</h3>
+<p>评论区有一条被严重低估的评论：「之前搞了 16w 港币炒股赚了 2w，结汇的时候一算账，相当于一分没赚」。</p>
+<p>我用实际汇率复算（一年前 HKD/CNY ≈ <span class="num">0.915</span>，现 ≈ <span class="num">0.854</span>）：</p>
+<div class="tw">
+<table>
+  <thead><tr><th style="width:56%">步骤</th><th>计算</th><th style="text-align:right">结果</th></tr></thead>
+  <tbody>
+    <tr><td>一年前 16 万港币折算</td><td class="n">160,000 × 0.915</td><td class="n" style="text-align:right">146,400 元</td></tr>
+    <tr><td>现在 18 万港币折算</td><td class="n">180,000 × 0.854</td><td class="n" style="text-align:right">153,720 元</td></tr>
+    <tr><td>实际净赚</td><td class="n">153,720 − 146,400</td><td class="n" style="text-align:right"><b>+7,320 元（+5.0%）</b></td></tr>
+    <tr><td>若汇率不变本应赚</td><td class="n">20,000 × 0.915</td><td class="n" style="text-align:right">+18,300 元（+12.5%）</td></tr>
+    <tr><td><b>汇率吞噬</b></td><td class="n">18,000 × (0.915 − 0.854)</td><td class="n" style="text-align:right"><b>−10,980 元 · 占收益 60%</b></td></tr>
+  </tbody>
+</table>
+</div>
+<p>「相当于一分没赚」是夸张，但<b>方向完全正确</b>：过去一年港元对人民币贬值约 <b>6.7%</b>，这个幅度足以吃掉大部分以港币计价的资产回报。<b>对所有「赚港币」的人来说，这一条比视频里所有数字都重要。</b></p>
+
+<h3>7.2 更深一层：为什么这类视频一定会出现，而且一定会火</h3>
+<p>把它当成「一个骗子」来解释，会错过真正的机制。这条视频能拿到 94 万播放，是因为它同时满足了三个条件：</p>
+<p><b>① 它提供了一个低成本的情绪出口。</b>「换个地方就能翻身」是普适幻想，83 秒的时长让它几乎零门槛地被消费。</p>
+<p><b>② 它的错误是「可反驳的」。</b>如果它说得含含糊糊，评论区就没有素材。恰恰因为它把数字说得极其具体（5.5 万、8 万、100 万），才给了近三千人逐条对账的把手。</p>
+<p><b>③ 反驳本身有社交收益。</b>在评论区贴出政府统计处原文，既证明了「我懂」，又不需要付出任何成本。<b>这条视频的真正产品不是内容，是一个可以展示知识的场地。</b></p>
+<p>这个结构可以迁移：<b>凡是「数字具体 + 结论极端 + 门槛极低」的内容，评论区大概率会自发产生一份比正文更靠谱的资料。</b>识别这个特征，你就知道该读哪里。</p>
+
+<h3>7.3 还没解决的 / 可以继续挖</h3>
+<div class="tw">
+<table>
+  <thead><tr><th style="width:32%">方向</th><th>说明</th></tr></thead>
+  <tbody>
+    <tr><td>按学历划分的官方薪资表</td><td>统计处表 210-06319 是与你最相关的一张，本次未查，值得单独做一次</td></tr>
+    <tr><td>IANG 的具体条款</td><td>24 个月的续签条件、是否需在港受雇、能否跨行业——本次未查证</td></tr>
+    <tr><td>香港数据／AI 岗真实薪资</td><td>评论区<b>没有一条</b>是中国香港数据岗的直接证词。应从 JobsDB／LinkedIn 实际招聘薪酬取样</td></tr>
+    <tr><td>中环租金 1 万 vs 2 万之争</td><td>本次最未收敛的一条矛盾，可在 28Hse／中原地产直接查证</td></tr>
+    <tr><td>基层劳工：直招 vs 中介</td><td>「管吃管住赢麻了」与「中介抽 10–15%」并存，可能是渠道差异，重点待确认</td></tr>
+  </tbody>
+</table>
+</div>
+<div class="caveat">
+  <b>要不要把这条视频接到你自己身上？</b>
+  本报告只分析「视频 + 评论区」本身，<b>不包含任何读者个人信息</b>——因此你可以随时把它原文分享给任何人。
+  如果你想把话题落到自己的处境（身份路径怎么走、对应的行业薪资区间、居住方案怎么选），那是独立的一件事：
+  把你的情况告诉我，我可以基于本文已经核实过的数据单独做一次追问式分析，<b>产物不会写进这份报告</b>。
+</div>
+
+<footer>
+  <p><b>本片最终建议：视频本身可以忘掉；第 4 章的 4.2、4.4、4.5 值得存下来。</b></p>
+  <p>报告生成于 2026-09-20 · 数据源：B站视频 <span class="num">BV1JHYg6yEPY</span> 的元数据、AI 字幕与热度前 620 条评论<br>
+  引文为观众原生文字，未经改写；视频相关内容来自 AI 字幕，标注处建议回原片核对<br>
+  <b>本报告不含任何读者个人信息，可自由分享。</b></p>
+</footer>
+
+</div>
+
+</body>
+</html>

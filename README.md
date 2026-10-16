@@ -48,6 +48,18 @@
 
 HTML 与 PDF 内容完全一致（PDF 由同一份 HTML 渲染，折叠区自动展开），中文可抽取、超链接保留。
 
+## 效果样例（直接看成品）
+
+[`examples/`](examples/) 下有两份**真实产出的报告**，HTML 与 PDF 各一份：
+
+| 样例 | 视频类型 | 看点 |
+|---|---|---|
+| 《KVMem 16G 显存跑 27B 长上下文》 [PDF](examples/20260920-《KVMem16G显存跑27B长上下文》分析总结.pdf) · [HTML](examples/20260920-《KVMem16G显存跑27B长上下文》分析总结.html) | A · 技术工具 | 参数对照表、评论区第三方实测反例、AI 字幕误转清单 |
+| 《当内地牛马去香港打工》 [PDF](examples/20260920-《当内地牛马去香港打工》分析总结.pdf) · [HTML](examples/20260920-《当内地牛马去香港打工》分析总结.html) | H · 娱乐段子 | 一句话数据侧写定性、评论区主战场、观点聚类与三轴分布 |
+
+> PDF 在 GitHub 页面上点开即可预览；HTML 请下载后用浏览器打开（含可点的时间戳链接）。
+> 两份样例均不含任何读者个人信息，可自由分享。
+
 ## 八型视频分流
 
 同一套骨架，不同类型的视频**细节呈现不相同**——这个判断不靠模型临场发挥，而是写死的：
@@ -78,7 +90,8 @@ git clone https://github.com/DavidLearning1023/bilibili-video-analysis-summary.g
 
 或者下载 zip 解压到对应目录。**完整的分客户端安装对照、MCP 配置、补丁、自检流程见 [`INSTALL.md`](INSTALL.md)**。
 
-> 最简路径：**不装任何 MCP 也能用**——`scripts/fetch_video.py` 自带取数（元数据 + 评论无需登录），只是拿不到字幕。
+> **推荐配置 MCP 通道**（字幕扫码登录、关键词定位、章节等附加能力，配一次全程受益；配套补丁已随仓库备好）；
+> 不装也能跑——`scripts/fetch_video.py` 自成兜底（元数据 + 评论无需登录），只是拿不到字幕。
 
 ## 使用
 
@@ -116,6 +129,7 @@ Agent 会自己完成：判断视频类型 → 取元数据/字幕/评论 → �
 ├── SKILL.md                  # 技能主体：触发边界 / 流程 / 硬性规则 / 维护入口
 ├── INSTALL.md                # 安装 + 各客户端对照 + 首次使用引导
 ├── README.md                 # 本文件
+├── examples/                 # 效果样例：两份真实产出的报告（HTML + PDF）
 ├── references/
 │   ├── video-types.md        # ⭐ 八型视频 → 细节呈现指引
 │   ├── report-authoring.md   # ⭐ 正文片段写法速查（class 清单 + 排版红线）
@@ -151,6 +165,9 @@ Agent 会自己完成：判断视频类型 → 取元数据/字幕/评论 → �
 
 **Q：PDF 生成失败？**
 PDF 依赖 Playwright（可选安装）。未安装时报告只出 HTML，装了自动出 PDF，详见 `INSTALL.md`。
+
+**Q：视频没有字幕（或 AI 字幕质量太差）怎么办？**
+可以用**本地 ASR 自建转写**作为第三条路——推荐 faster-whisper（有 GPU 时实测 27–30 倍实时），转写结果直接替代字幕进入分析流程；本仓库不含模型，完整做法见 [`references/troubleshooting.md`](references/troubleshooting.md) §6.5。
 
 **Q：读不到某个视频的字幕 / 报错？**
 付费、会员、地区限制、私密内容读不到是正常结果，skill 不尝试绕过。其余问题先跑 `scripts/check_setup.py`，再查 `references/troubleshooting.md` 的症状表。
