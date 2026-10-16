@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>20260920-《KVMem 16G 显存跑 27B 长上下文》分析总结</title>
+<title>20261017-《KVMem 16G 显存跑 27B 长上下文》分析总结</title>
 <style>
 /* ==========================================================================
    视频分析报告 · 长文编辑轨样式表
@@ -82,6 +82,9 @@ a{color:var(--accent); text-decoration:none; border-bottom:1px solid rgba(166,61
 a:hover{border-bottom-color:var(--accent)}
 .num{font-variant-numeric:tabular-nums; font-feature-settings:"tnum"}
 mark{background:var(--accent-soft); color:var(--ink); padding:0 4px}
+.metrics{font-family:var(--sans); font-size:15.5px; line-height:2; color:var(--ink-2);
+         margin:0 0 20px}
+.metrics b{color:var(--ink)}
 
 /* ---------- 来源标记（单色梯度，不用第二种色相） ---------- */
 .src{font-family:var(--sans); font-size:12.5px; font-weight:600; letter-spacing:.08em;
@@ -185,10 +188,18 @@ footer{margin-top:88px; padding-top:28px; border-top:2px solid var(--ink);
   .page{width:100%; max-width:none; padding:0}
   .masthead{padding-top:0}
 
+  /* 显式锁定多列布局，避免打印视口宽度触发窄屏规则 */
+  .verdict{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .small-multiples{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .bar{grid-template-columns:11em 1fr auto}
+  .sm-row{grid-template-columns:3.8em 1fr 3.4em}
+
   /* 标题不许落在页尾；块级不许被切断；长表格按行分页并重复表头 */
   h1,h2,h3,h4,summary{break-after:avoid; page-break-after:avoid}
   figure,.pull,.caveat,.bars,.sm,.vcell,details,blockquote,figcaption{
     break-inside:avoid; page-break-inside:avoid}
+  /* 高个子图表允许跨页，否则会把整页顶空 */
+  figure.tall{break-inside:auto; page-break-inside:auto}
   .small-multiples{break-inside:auto; page-break-inside:auto}
   .tw{break-inside:auto; page-break-inside:auto}
   tr,td,th{break-inside:avoid; page-break-inside:avoid}
@@ -682,7 +693,7 @@ footer{margin-top:88px; padding-top:28px; border-top:2px solid var(--ink);
 
 <footer>
   <p><b>一句话：想搞懂原理，看 2.2 和 7.2；想动手部署，先看 05 的参数表；想知道它靠不靠谱，看 4.2。</b></p>
-  <p>报告生成于 2026-09-20 · 重制于 2026-10-16 · 数据源：B站视频 <span class="num">BV1r2ey6EEh5</span> 的元数据、AI 字幕与热度前 268 条评论<br>
+  <p>报告生成于 2026-09-20 · 重制于 2026-10-17 · 数据源：B站视频 <span class="num">BV1r2ey6EEh5</span> 的元数据、AI 字幕与热度前 268 条评论<br>
   引文为观众原生文字，未经改写；视频相关内容来自 AI 字幕，标注处建议回原片核对<br>
   <b>本报告不含任何读者个人信息，可自由分享。</b></p>
 </footer>

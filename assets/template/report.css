@@ -75,6 +75,9 @@ a{color:var(--accent); text-decoration:none; border-bottom:1px solid rgba(166,61
 a:hover{border-bottom-color:var(--accent)}
 .num{font-variant-numeric:tabular-nums; font-feature-settings:"tnum"}
 mark{background:var(--accent-soft); color:var(--ink); padding:0 4px}
+.metrics{font-family:var(--sans); font-size:15.5px; line-height:2; color:var(--ink-2);
+         margin:0 0 20px}
+.metrics b{color:var(--ink)}
 
 /* ---------- 来源标记（单色梯度，不用第二种色相） ---------- */
 .src{font-family:var(--sans); font-size:12.5px; font-weight:600; letter-spacing:.08em;
@@ -178,10 +181,18 @@ footer{margin-top:88px; padding-top:28px; border-top:2px solid var(--ink);
   .page{width:100%; max-width:none; padding:0}
   .masthead{padding-top:0}
 
+  /* 显式锁定多列布局，避免打印视口宽度触发窄屏规则 */
+  .verdict{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .small-multiples{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .bar{grid-template-columns:11em 1fr auto}
+  .sm-row{grid-template-columns:3.8em 1fr 3.4em}
+
   /* 标题不许落在页尾；块级不许被切断；长表格按行分页并重复表头 */
   h1,h2,h3,h4,summary{break-after:avoid; page-break-after:avoid}
   figure,.pull,.caveat,.bars,.sm,.vcell,details,blockquote,figcaption{
     break-inside:avoid; page-break-inside:avoid}
+  /* 高个子图表允许跨页，否则会把整页顶空 */
+  figure.tall{break-inside:auto; page-break-inside:auto}
   .small-multiples{break-inside:auto; page-break-inside:auto}
   .tw{break-inside:auto; page-break-inside:auto}
   tr,td,th{break-inside:avoid; page-break-inside:avoid}

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>20260920-《当内地牛马去香港打工》分析总结</title>
+<title>20261017-《当内地牛马去香港打工》分析总结</title>
 <style>
 /* ==========================================================================
    视频分析报告 · 长文编辑轨样式表
@@ -187,6 +187,7 @@ footer{margin-top:88px; padding-top:28px; border-top:2px solid var(--ink);
   body{background:#fff; font-size:11pt; line-height:1.78}
   .page{width:100%; max-width:none; padding:0}
   .masthead{padding-top:0}
+
   /* 显式锁定多列布局，避免打印视口宽度触发窄屏规则 */
   .verdict{grid-template-columns:repeat(2,minmax(0,1fr))}
   .small-multiples{grid-template-columns:repeat(2,minmax(0,1fr))}
@@ -235,6 +236,7 @@ footer{margin-top:88px; padding-top:28px; border-top:2px solid var(--ink);
     print-color-adjust:exact}
   table{font-size:10pt}
 }
+/* 注意：必须限定 screen —— 打印时 A4 内容宽折算约 605px，不加限定会误用移动端布局 */
 @media screen and (max-width:860px){
   body{font-size:17px}
   h1{font-size:30px}
@@ -251,7 +253,6 @@ footer{margin-top:88px; padding-top:28px; border-top:2px solid var(--ink);
 </head>
 <body>
 <div class="page">
-
 <!-- ============================ 报头 ============================ -->
 <header class="masthead">
   <p class="kicker">视频数据分析报告</p>
@@ -736,8 +737,6 @@ footer{margin-top:88px; padding-top:28px; border-top:2px solid var(--ink);
   引文为观众原生文字，未经改写；视频相关内容来自 AI 字幕，标注处建议回原片核对<br>
   <b>本报告不含任何读者个人信息，可自由分享。</b></p>
 </footer>
-
 </div>
-
 </body>
 </html>
