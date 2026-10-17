@@ -134,10 +134,23 @@ python <skill 目录>/scripts/check_setup.py
 python <skill 目录>/scripts/fetch_video.py BV1r2ey6EEh5 --comments 150 --no-subtitle   # 元数据 + 评论，无需登录
 ```
 
+没有字幕时的完整三步（都无需 MCP）：
+
+```bash
+python <skill 目录>/scripts/fetch_media.py BV1r2ey6EEh5 --audio --out ./m          # ① 音轨
+python <本地 ASR 脚本> m/audio.m4s --model large-v3 --language zh --formats srt     # ② 转写
+python <skill 目录>/scripts/fetch_media.py BV1r2ey6EEh5 --video 1080 --out ./m     # ③ 要读画面数字才下
+```
+
+> `grab_frames.py` 依赖 **ffmpeg**（可用环境变量 `FFMPEG_BIN` 指定路径）；`check_pdf.py` 依赖 **pymupdf**。两者都是可选的，不做画面/版式核对时不装也能出报告。
+
 | 能力 | 最简路径 | 装了 MCP |
 |---|---|---|
 | 元数据 + 评论 | ✅ | ✅ |
 | 字幕 | 需自备登录凭据（无扫码向导） | ✅ 扫码即可 |
+| 无字幕视频（音轨下载 + 本地转写） | ✅ `scripts/fetch_media.py`，无需 MCP | ✅ |
+| 画面抽帧（抽帧 + 时间线清单） | ✅ `scripts/grab_frames.py`，需 ffmpeg | ✅ |
+| PDF 版式自检 | ✅ `scripts/check_pdf.py`，需 pymupdf | ✅ |
 | 关键词定位 / 章节 / 收藏夹 | ❌ | ✅ |
 | 评论条数上限 | 不限 | 补丁后 300 条主评论 |
 

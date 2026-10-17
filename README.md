@@ -56,6 +56,7 @@ HTML 与 PDF 内容完全一致（PDF 由同一份 HTML 渲染，折叠区自动
 |---|---|---|
 | 《KVMem 16G 显存跑 27B 长上下文》 [PDF](examples/20261017-《KVMem16G显存跑27B长上下文》分析总结.pdf) · [HTML](examples/20261017-《KVMem16G显存跑27B长上下文》分析总结.html) | A · 技术工具 | 参数对照表、评论区第三方实测反例、AI 字幕误转清单 |
 | 《当内地牛马去香港打工》 [PDF](examples/20261017-《当内地牛马去香港打工》分析总结.pdf) · [HTML](examples/20261017-《当内地牛马去香港打工》分析总结.html) | H · 娱乐段子 | 一句话数据侧写定性、评论区主战场、观点聚类与三轴分布 |
+| 《「实测」越贵的AI越菜？我对各大AI工具进行了测试...》 [PDF](examples/20261017-《「实测」越贵的AI越菜？我对各大AI工具进行了测试...》分析总结.pdf) · [HTML](examples/20261017-《「实测」越贵的AI越菜？我对各大AI工具进行了测试...》分析总结.html) | A · 工具横评 | **无字幕全流程**：本地 ASR + 1080p 抽帧核对表格；从脚注里找出「满分 97 而非 100」、从贴片烧字里找出「43 分钟 vs 115 分钟」两个硬伤 |
 
 > PDF 在 GitHub 页面上点开即可预览；HTML 请下载后用浏览器打开（含可点的时间戳链接）。
 > 两份样例均不含任何读者个人信息，可自由分享。
@@ -120,6 +121,8 @@ Agent 会自己完成：判断视频类型 → 取元数据/字幕/评论 → �
 | "报告加一节「历史类比」" | `references/output-template.md` + `SKILL.md` 硬性规则 |
 | "以后报告默认放 D:\我的报告" | `SKILL.md` 落盘约定 |
 | "取数脚本要支持 XX" | `scripts/fetch_video.py` |
+| "视频下不下来 / 抽帧太慢 / PDF 里有空白页" | `scripts/fetch_media.py` / `scripts/grab_frames.py` / `scripts/check_pdf.py` |
+| "这类视频该抽多密的帧" | `references/video-sampling.md` + `SKILL.md`「什么时候才该抽帧」 |
 
 改动的完整流程（改哪里、怎么验证、怎么记录）写在 `references/maintenance.md`，AI 会按它执行，并在 `references/CHANGELOG.md` 里留痕。
 
@@ -129,10 +132,12 @@ Agent 会自己完成：判断视频类型 → 取元数据/字幕/评论 → �
 ├── SKILL.md                  # 技能主体：触发边界 / 流程 / 硬性规则 / 维护入口
 ├── INSTALL.md                # 安装 + 各客户端对照 + 首次使用引导
 ├── README.md                 # 本文件
-├── examples/                 # 效果样例：两份真实产出的报告（HTML + PDF）
+├── examples/                 # 效果样例：三份真实产出的报告（HTML + PDF）
 ├── references/
 │   ├── video-types.md        # ⭐ 八型视频 → 细节呈现指引
 │   ├── report-authoring.md   # ⭐ 正文片段写法速查（class 清单 + 排版红线）
+│   ├── video-sampling.md     # ⭐ 抽帧密度：市面做法对照 + 频率公式
+│   ├── lessons.md            # ⭐ 实战复盘：时间账、判断失误、由它改掉的规则
 │   ├── output-template.md    # 报告骨架 + 命名与落盘规范
 │   ├── troubleshooting.md    # 故障知识库：症状 → 诊断 → 修复
 │   ├── maintenance.md        # 维护流程：自检、升级、改名、验证清单
@@ -141,6 +146,9 @@ Agent 会自己完成：判断视频类型 → 取元数据/字幕/评论 → �
 ├── scripts/
 │   ├── check_setup.py        # 前置条件自检（诊断入口）
 │   ├── fetch_video.py        # 自包含取数：元数据 / 字幕 / 评论（仅标准库）
+│   ├── fetch_media.py        # 音视频流下载：Range 探长 + 分块 + 校验（绕开 567 与截断）
+│   ├── grab_frames.py        # 抽帧：转写锚点 / 镜头检测 / 定点 / 密集去重 / 字幕条
+│   ├── check_pdf.py          # PDF 版式自检：只把可疑页出图
 │   └── render_report.py      # 正文片段 + 模板 → 单文件 HTML（--pdf 出 PDF）
 └── assets/
     ├── template/             # report.css（固定样式表）+ shell.html
@@ -156,7 +164,11 @@ Agent 会自己完成：判断视频类型 → 取元数据/字幕/评论 → �
 - **话题取样偏差**：热度排序奖励"短、狠、可表态"，惩罚"长、细、需要条件"——**热度用来选样本，内容密度用来排序**
 - **赞／币比**：投币是 B站唯一有成本的认可动作——赞/币 ≥ 20:1 基本可判定为情绪型内容，重心应转到评论区
 - **排版陷阱**：打印时 A4 折算宽约 605px，不带 `screen` 限定的窄屏 media query 会让 PDF 变成移动端布局（屏幕上看不出）
-- 以上的完整清单与验证记录，都在 `references/troubleshooting.md` 与 `references/CHANGELOG.md` 里
+- **B站反爬与截断**：缺 `Referer` 直接 567（yt-dlp 同样）；大文件单次请求会被**静默截断**，而截断的 m4s 仍能被 ffprobe 读出完整时长，到解码才报错——报错位置离病因很远。`fetch_media.py` 把这三坎封在内部
+- **抽帧密度不是越密越好**：固定 1 fps 只是厂商默认值（1 小时 ≈ 93 万 token）；主流实现的有效帧数落在 300–800。**按事件分配预算，不按秒**——幻灯片 0.2–0.3 fps 就够，软件演示才需要 1 fps
+- **抽帧的两种目的**：补全（口播有指代、零数字）与**核对（口播给了数字、但口径可能对不上）**。只按"信息缺口"判会漏掉全部核对型发现，而硬伤往往就出在"口播听起来完整"的地方
+- **成本单位是图片，不是字数**：一次整页图读取 ≈ 三四千字文本。所以先跑脚本筛、再看联系表、最后只回读 3–5 张——这条让一篇 18 分钟的报告里有约 7 分钟被省掉
+- 以上的完整清单与验证记录，都在 `references/troubleshooting.md`、`references/lessons.md` 与 `references/CHANGELOG.md` 里
 
 ## 常见问题
 
@@ -167,7 +179,18 @@ Agent 会自己完成：判断视频类型 → 取元数据/字幕/评论 → �
 PDF 依赖 Playwright（可选安装）。未安装时报告只出 HTML，装了自动出 PDF，详见 `INSTALL.md`。
 
 **Q：视频没有字幕（或 AI 字幕质量太差）怎么办？**
-可以用**本地 ASR 自建转写**作为第三条路——推荐 faster-whisper（有 GPU 时实测 27–30 倍实时），转写结果直接替代字幕进入分析流程；本仓库不含模型，完整做法见 [`references/troubleshooting.md`](references/troubleshooting.md) §6.5。
+走「无字幕固定链路」，三步都已有脚本，不需要现场拼代码：
+
+```bash
+python scripts/fetch_media.py BVxxxxxxxx --audio --out ./m    # ① 音轨（12 MB / 0.6 s）
+python <本地 ASR>/transcribe.py m/audio.m4s --model large-v3 --language zh --formats srt
+python scripts/fetch_media.py BVxxxxxxxx --video 1080 --out ./m   # ③ 要读画面数字才下（46 MB / 3 s）
+```
+
+推荐 faster-whisper（有 GPU 时实测 17–30 倍实时），转写结果直接替代字幕进入分析流程。**要读表格里的数字就必须下 1080p**（360p 的文字不可读）。完整做法见 [`references/troubleshooting.md`](references/troubleshooting.md) §6.5，密度与时机见 [`references/video-sampling.md`](references/video-sampling.md)。
+
+**Q：为什么不干脆把视频每一帧都抽出来给模型看？**
+因为成本不在抽帧，在**读图**。固定 1 fps 处理 1 小时视频约 93 万 token；一次整页图读取 ≈ 三四千字文本。本仓库的做法是先在本地把帧压成结构（去重 + 按口播分段 + 联系表），只把「每段首帧 + 变化点」交给模型——通常 15–25 张就够。详见 `references/video-sampling.md` 与 `references/lessons.md`。
 
 **Q：读不到某个视频的字幕 / 报错？**
 付费、会员、地区限制、私密内容读不到是正常结果，skill 不尝试绕过。其余问题先跑 `scripts/check_setup.py`，再查 `references/troubleshooting.md` 的症状表。

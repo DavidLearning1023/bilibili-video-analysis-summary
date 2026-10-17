@@ -74,6 +74,11 @@ def to_pdf(html_path, pdf_path=None):
         pg = b.new_page()
         pg.goto("file:///" + html_path.replace("\\", "/"), wait_until="networkidle")
         pg.emulate_media(media="print")
+        # 折叠区必须在 PDF 里全部可见。CSS 里的 details>.body{display:block}
+        # 在 Chromium 上不生效——闭合 <details> 的内容由 UA 的 ::details-content
+        # 以 content-visibility:hidden 隐藏，子元素改 display 也进不了盒树。
+        # 所以只能在这里把 open 打开（只影响本次打印，磁盘上的 HTML 仍是折叠态）。
+        pg.evaluate("() => document.querySelectorAll('details').forEach(d => d.open = true)")
         # 注意：prefer_css_page_size=True 时，纸张与边距由 CSS 的 @page 决定
         # （report.css 里是 A4 + 18mm 25mm）。这里不要再传 margin，传了也会被 CSS 覆盖，
         # 容易误导后来维护的人。

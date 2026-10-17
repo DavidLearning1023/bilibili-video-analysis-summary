@@ -203,6 +203,10 @@ footer{margin-top:88px; padding-top:28px; border-top:2px solid var(--ink);
   details > .body{display:block !important}
   details > summary{cursor:default}
   summary::after{content:""}
+  /* 打印时折叠区一律展开，右侧的「收起／展开」提示要一起去掉。
+     注意必须带 details[open] 前缀：屏幕上那条 details[open] summary::after
+     的优先级更高，单写 summary::after 盖不住它。 */
+  details[open] summary::after{content:""}
   summary::before{display:none}
 
   /* 链接去装饰（打印件不能点，靠时间戳文字定位） */

@@ -5,6 +5,139 @@
 
 ---
 
+## 2026-10-17 · 把当天经验落进项目入口（README / INSTALL / 样例 / 复盘文档）
+
+**类型**：文档 + 样例
+
+**改了什么**
+
+| 文件 | 改动 |
+|---|---|
+| `references/lessons.md` | **新增**。证据层：这一篇 18 分钟的时间账（哪 7 分钟白花）、五个失误 → 对应现在写死的五条规则、两个"校验型发现"证明抽帧的两种目的、顺带修的三个 bug、可复用的基线数字 |
+| `README.md` | 目录结构补 3 个脚本 + 2 份 reference；维护速查表补 3 行；「沉淀了什么」补 5 条（反爬与截断、抽帧密度、两种目的、成本单位是图片）；FAQ 新增「为什么不干脆每帧都给模型看」；无字幕 FAQ 改为三条可直接复制的命令 |
+| `INSTALL.md` | 最简路径（不装 MCP）的能力表补 3 行（音轨下载 / 抽帧 / PDF 自检）；补无字幕三步命令；注明 `grab_frames.py` 依赖 ffmpeg、`check_pdf.py` 依赖 pymupdf，且都是可选 |
+| `examples/` | 新增第三份样例《「实测」越贵的AI越菜？…》——首个**无字幕全流程**样板，看点标注为"从脚注找出满分 97、从贴片烧字找出 43 vs 115 分钟" |
+| `SKILL.md` | 维护速查表补 4 行；文件地图补 `references/lessons.md`；「五条铁律」末尾加指向 lessons 的说明 |
+
+**为什么**
+
+用户在完成一篇分析后追问「为什么用了 18 分钟」，并要求把经验落回 skill 项目。
+规则已经写进 `SKILL.md`，但**规则的"为什么"没有落点**——于是新增 `references/lessons.md` 作为证据层，形成三层结构：
+
+- `SKILL.md` = 做什么（操作规则）
+- `references/video-sampling.md` = 事实层（外部参数、公式）
+- `references/lessons.md` = 证据层（真实跑批的时间账与失误）
+
+三份样例也覆盖了三种典型路径：A 型有字幕、H 型评论区主战场、A 型**无字幕靠抽帧核对**。
+
+**怎么验证的**
+
+- 三个脚本 `py_compile` 通过；`scripts/check_setup.py` 全 `[OK]`
+- README/SKILL/INSTALL 交叉链接扫描：除两处代码示例里的伪链接（`url?t=581`、`视频URL?t=秒数`）外无断链
+- 新增样例的 HTML/PDF 与 README 表格中的文件名逐字一致
+
+**遗留**
+
+- 第三份样例 PDF 2.9 MB，仓库 `examples/` 合计约 8.8 MB。若后续样例继续增加，应考虑只保留 HTML、PDF 放 release。
+
+---
+
+## 2026-10-17 · 抽帧密度：新增 references/video-sampling.md + grab_frames 密集模式
+
+**类型**：增强（能力）
+
+**改了什么**
+
+| 文件 | 改动 |
+|---|---|
+| `references/video-sampling.md` | **新增**。市面六种做法的采样参数对照（Gemini 静态 1 fps / Gemini agentic 省 88% / Qwen 动态 FPS + 768 帧上限 / Claude 生态 claude-real-video / ChatGPT / Video-RAG 与 CARVE）、频率公式、「画面为主」时的三选项、四条自用判据 |
+| `scripts/grab_frames.py` | 加 `--dense FPS`（密集采样）、`--dedupe`（mpdecimate 去重）、`--srt`（生成 `manifest.md` 时间线，按口播分段）；修两处隐患：重复跑时旧帧残留导致序号错位、密集采样时逐帧 manifest 无法阅读（改为按段合并） |
+| `SKILL.md` | 「什么时候才该抽帧」加「判定为画面为主之后：停下来问，但给三个选项」；文件地图加新 reference |
+
+**为什么**
+
+用户提出：判定"信息只在画面"时应停下来问用户（只看评论区 vs 认真看片），并追问"市面怎么做、频率怎么定"。
+
+核对后确认三件事：
+1. **固定 1 fps 只是厂商默认值**，长内容上已经不够（1 小时 ≈ 93 万 token），Gemini 因此加了 agentic 模式（按需取帧、省 88%）；
+2. **没有任何单一密度是万能的**——CARVE 的结论是按 chunk 选配置，四配置各占约 25%；
+3. **顺序必须由 manifest 承载**，Qwen 靠时间编码、Claude 生态靠单一清单，两条路都在解决同一问题。
+
+因此本项目不能只给"一个 fps"，要给"预算公式 + 分段清单"。
+
+**怎么验证的**
+
+- `grab_frames.py --dense 1` 实测 7:41 视频 → **461 帧**（= 时长秒数，符合预期）；`--dense 1 --dedupe` → **435 帧**（去重率仅 5.6%，因为本片是人像+字幕持续变化，恰好落在文档里「去重率 <20% → 改按事件抽」那条判据上）
+- `--srt` 生成的 `manifest.md`：435 帧合并为 **17 段**，每段给出「时间范围 + 帧区间 + 张数 + 该段口播」，人工核对第 3 段（01:06–01:32）确为榜单页所在段
+- 旧帧残留问题已验证：同目录重跑会与上次文件混在一起，现按前缀清理后再抽
+
+**遗留**
+
+- 「画面为主」的置信度阈值（ASR 有效字率、指代句占比、场景切换率）**未在语料上标定**，首次使用需记录判断与实际结果的对照。
+- mpdecimate 默认阈值偏保守（人像视频几乎不去重），幻灯片类建议实测后按需调 `hi/lo/frac`。
+
+---
+
+## 2026-10-17 · 新增三个脚本，把「18 分钟里白花的 7 分钟」固化掉
+
+**类型**：增强（效率）
+
+**改了什么**
+
+| 文件 | 改动 |
+|---|---|
+| `scripts/fetch_media.py` | **新增**。B站 dash 音视频流下载：Range 探测真实总长 → 4 MB 分块 → 字节数校验 → 多源 backupUrl 重试。封装了三个已知坑（缺 Referer → 567、单次请求被静默截断、截断文件仍能被 ffprobe 读出时长） |
+| `scripts/grab_frames.py` | **新增**。抽帧三模式：`--from-srt`（转写段首当锚点，最优）、`--scene`（镜头检测 + 最小间隔过滤）、`--at`（定点）；另加 `--sub` 字幕条模式与 `--sheet N` 联系表。输出 `index.tsv` 对照表 |
+| `scripts/check_pdf.py` | **新增**。PDF 版式自检：每页字数、内容底线位置、链接数、是否漏印「收起/展开」；`--images N` 只导出最可疑的页 |
+| `SKILL.md` | 新增「省时省图的五条铁律」+「效率基线」表；「取数据」一节加 `fetch_media.py` 用法与「不要用 yt-dlp 下 B站」；「字幕可靠性」一节加「无字幕时的固定链路（三步）」；交付自检 ⑤ 改为先跑 `check_pdf.py` |
+| `references/CHANGELOG.md` | 本条 |
+
+**为什么**
+
+一条 7:41 的无字幕视频首版交付用了 18 分钟，复盘确认约 7 分钟是纯浪费：
+① yt-dlp 对 B站 必然 567，重试 10 次才放弃（踩了两次）；
+② 1080p 单次请求被截断到 5.7 MB（真实 46.3 MB），用截断文件抽帧报 NAL 错，报错位置离病因很远；
+③ 定时抽帧 43 张只用 2 张；镜头检测在这类「人像小窗 + 字幕」视频上会报 82 个场景，等于没筛；
+④ PDF 自检读了 8 张整页图，实际只有 1 页有问题；
+⑤ 一次「猜布局」实验（改定性卡格数）改坏又改回，纯损失。
+
+**怎么验证的**
+
+- `fetch_media.py`：BV11fJX6GEcL 实测音频 12.0 MB / 0.6 s；1080p 46.3 MB / 3.1 s，ffprobe 确认 `1920x1080 h264 / 7:41.18`（此前单次请求只拿到 5.7 MB）
+- `grab_frames.py`：同一视频 `--from-srt` 出 **17 张**（对比镜头检测 82 个场景、定时 43 张）；`--sheet 4` 生成 4 张 2×2 联系表，肉眼确认第 4 格正是榜单表；`--sub` 一次得到可读的字幕条竖排图（此前手写 crop 连错两次得到全黑图）
+- `check_pdf.py`：对本次 20 页报告只报出第 8 页「页尾留白 66%」（人工确认该页确实因图表移到下一页而留白），此前误报的「收起」与低字数表格页已按「内容底线」判据消除
+
+**遗留**
+
+- `grab_frames.py` 的联系表假定 16:9（`xstack` 的 y 偏移按 `width*9/16` 算）；非 16:9 素材需要改成读实际高度。
+- `fetch_media.py` 只处理 dash；老视频/番剧的 durl 格式未支持（会明确报错，不静默失败）。
+
+---
+
+## 2026-10-17 · 修复 PDF 里折叠区内容整块消失（Chromium 的 ::details-content）
+
+**类型**：修复
+
+**改了什么**
+
+| 文件 | 改动 |
+|---|---|
+| `scripts/render_report.py` | `to_pdf()` 在 `emulate_media(media="print")` 之后、`pg.pdf()` 之前加一句 `pg.evaluate("() => document.querySelectorAll('details').forEach(d => d.open = true)")` |
+| `assets/template/report.css` | 打印块补 `details[open] summary::after{content:""}` |
+
+**为什么**
+
+1. **`@media print{ details > .body{display:block !important} }` 在 Chromium 上不生效**。闭合的 `<details>` 里的内容由 UA 的 `::details-content{content-visibility:hidden}` 隐藏，子元素改 `display` 也进不了盒树——于是 PDF 里整块折叠内容**直接消失**，只在页面上留下一个孤零零的 `<summary>` 行。实测：一份 20 页的报告，末页只剩「4 项 这份报告没有解决的问题」一行，四条正文全部丢失。
+2. 连带问题：脚本把 `open` 打开后，屏幕上那条 `details[open] summary::after{content:"收起"}` 的优先级（0,1,2）高于打印块里的 `summary::after{content:""}`（0,0,2），PDF 会在右上角印出「收起」。必须带 `details[open]` 前缀覆盖。
+
+**怎么验证的**
+
+- 修复前：`grep -c "<details>"` 的正文块在 PDF 里只出现 summary 行（该页字数 434 → 补回后 787）
+- 修复后：末页四条正文全部可见；`pymupdf` 抽文本校验 `'收起' in page_text == False`
+- 同一份报告重渲染：20 页、23 个链接保留、每页字数最少 434（无空白页）
+
+---
+
 ## 2026-10-17 · 样例日期统一为发布日 + 修复 report.css 缺失的三组规则
 
 **类型**：修复 + 文档

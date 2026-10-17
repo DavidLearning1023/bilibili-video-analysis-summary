@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>20261017-《「实测」越贵的AI越菜？我对各大AI工具进行了测试...》分析总结</title>
+<style>
+/* ==========================================================================
+   视频分析报告 · 长文编辑轨样式表
+   依据：design-aesthetics-book / editorial-publishing（编辑/出版轨）
+   ---------------------------------------------------------------------------
+   核心决策：**全站单一宽度**（正文、表格、图、图注、定性卡同宽，不再有出血栏）
+   正文 19px / 行距 1.78 / 内容宽 780px ≈ 41 字每行（规范硬上限 42）
+   字体：正文思源宋体，标题·表格·图注思源黑体
+   用色：墨黑 #1F2227（禁纯黑）· 单一强调色赭红 #A63D2F · 禁渐变禁投影
+   ========================================================================== */
+:root{
+  --ink:#1F2227; --ink-2:#464C55; --mute:#6E7681; --faint:#9AA1A9;
+  --paper:#FCFBF8; --panel:#F4F2ED; --panel-2:#EDEAE3; --rule:#E0DCD4;
+  --accent:#A63D2F; --accent-soft:#F0E4E0;
+  --serif:"Noto Serif SC","Source Han Serif SC","Songti SC","SimSun",Georgia,serif;
+  --sans:"Noto Sans SC","Source Han Sans SC","PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  --w:780px;                       /* 全站唯一宽度 */
+  --gap-in:12px; --gap-out:30px;   /* 组内 / 组间，比值 2.5 */
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0; background:var(--paper); color:var(--ink);
+  font-family:var(--serif); font-size:19px; line-height:1.78;
+  -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
+}
+.page{width:var(--w); max-width:calc(100% - 40px); margin:0 auto; padding:0 0 96px}
+.page > *{min-width:0}
+.bleed{display:block}   /* 保留钩子；单一宽度下与正文同宽 */
+
+/* ---------- 报头 ---------- */
+.masthead{padding-top:44px}
+.kicker{font-family:var(--sans); font-size:13.5px; font-weight:600; letter-spacing:.2em;
+        text-transform:uppercase; color:var(--accent); margin:0 0 14px}
+h1{font-family:var(--sans); font-size:42px; font-weight:700; line-height:1.26;
+   letter-spacing:-.015em; margin:0 0 20px; text-wrap:balance}
+.standfirst{font-size:21px; line-height:1.7; color:var(--ink-2); margin:0 0 24px}
+.standfirst b{color:var(--ink); font-weight:600}
+.meta{font-family:var(--sans); font-size:14px; line-height:1.9; color:var(--mute);
+      border-top:1px solid var(--rule); border-bottom:1px solid var(--rule);
+      padding:13px 0; margin:0}
+.meta span{margin-right:22px; white-space:nowrap; display:inline-block}
+.meta b{color:var(--ink-2); font-weight:600; font-variant-numeric:tabular-nums}
+
+/* ---------- 定性区（一屏判断） ---------- */
+.verdict{background:var(--panel); padding:30px 34px; margin:38px 0 0;
+         display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:18px 38px}
+.vcell dt{font-family:var(--sans); font-size:12.5px; font-weight:600; letter-spacing:.14em;
+          color:var(--mute); text-transform:uppercase; margin:0 0 7px}
+.vcell dd{margin:0; font-size:17.5px; line-height:1.66}
+.vcell dd b{font-weight:600}
+.vcell-full{grid-column:1 / -1}
+.rate{display:inline-flex; align-items:center; gap:4px; font-family:var(--sans);
+      font-size:15px; color:var(--mute); vertical-align:-1px}
+.rate i{width:13px; height:13px; border:1px solid var(--faint); display:block}
+.rate i.on{background:var(--accent); border-color:var(--accent)}
+.rate em{font-style:normal; margin-left:9px; letter-spacing:0}
+
+/* ---------- 标题层级（章 1.9× / 节 1.5× / 小节 1.2×） ---------- */
+h2{font-family:var(--sans); font-size:36px; font-weight:700; line-height:1.32;
+   letter-spacing:-.012em; margin:82px 0 6px; padding-top:28px;
+   border-top:2px solid var(--ink)}
+h2 .no{display:block; font-size:17px; font-weight:600; color:var(--accent);
+       letter-spacing:.1em; font-variant-numeric:tabular-nums; margin-bottom:6px}
+h2 .sub{display:block; font-size:16px; font-weight:400; color:var(--mute); margin-top:10px;
+        letter-spacing:0; line-height:1.6}
+h3{font-family:var(--sans); font-size:28px; font-weight:600; line-height:1.42;
+   margin:52px 0 12px; letter-spacing:-.008em}
+h4{font-family:var(--sans); font-size:23px; font-weight:600; line-height:1.5; margin:38px 0 10px}
+h2 + p, h3 + p, h4 + p{margin-top:8px}
+
+/* ---------- 正文 ---------- */
+p{margin:0 0 20px}
+strong,b{font-weight:600}
+a{color:var(--accent); text-decoration:none; border-bottom:1px solid rgba(166,61,47,.3)}
+a:hover{border-bottom-color:var(--accent)}
+.num{font-variant-numeric:tabular-nums; font-feature-settings:"tnum"}
+mark{background:var(--accent-soft); color:var(--ink); padding:0 4px}
+.metrics{font-family:var(--sans); font-size:15.5px; line-height:2; color:var(--ink-2);
+         margin:0 0 20px}
+.metrics b{color:var(--ink)}
+
+/* ---------- 来源标记（单色梯度，不用第二种色相） ---------- */
+.src{font-family:var(--sans); font-size:12.5px; font-weight:600; letter-spacing:.08em;
+     padding:2px 9px; margin-right:9px; vertical-align:2px; white-space:nowrap}
+.src-v{background:var(--ink); color:var(--paper)}
+.src-c{background:var(--mute); color:#fff}
+.src-m{border:1px solid var(--faint); color:var(--mute)}
+
+/* ---------- 判定标签 ---------- */
+.verd{font-family:var(--sans); font-size:13.5px; font-weight:700; letter-spacing:.06em;
+      padding:3px 10px; white-space:nowrap}
+.verd-no{background:var(--accent); color:#fff}
+.verd-tight{background:var(--panel-2); color:var(--accent); border:1px solid var(--accent)}
+.verd-ok{background:var(--panel-2); color:var(--ink-2); border:1px solid var(--rule)}
+
+/* ---------- 时间戳 ---------- */
+.ts{font-family:var(--sans); font-size:14px; font-variant-numeric:tabular-nums;
+    color:var(--mute); border-bottom:1px dotted var(--faint); text-decoration:none;
+    padding:0 2px; white-space:nowrap}
+.ts:hover{color:var(--accent); border-bottom-color:var(--accent)}
+
+/* ---------- 表格 ---------- */
+.tw{margin:26px 0 30px}
+table{border-collapse:collapse; width:100%; font-family:var(--sans); font-size:15.5px;
+      line-height:1.68}
+th{text-align:left; font-weight:600; font-size:13px; letter-spacing:.06em; color:var(--mute);
+   text-transform:uppercase; border-bottom:1.5px solid var(--ink); padding:0 18px 10px 0}
+td{border-bottom:1px solid var(--rule); padding:13px 18px 13px 0; vertical-align:top}
+td:last-child,th:last-child{padding-right:0}
+tbody tr:hover{background:var(--panel)}
+td.n{font-variant-numeric:tabular-nums; white-space:nowrap}
+
+/* ---------- 图表 ---------- */
+figure{margin:34px 0 38px}
+figcaption{font-family:var(--sans); font-size:14px; line-height:1.72; color:var(--mute);
+           margin-top:14px}
+figcaption b{color:var(--ink-2); font-weight:600}
+
+/* 条形（无边框、无底色容器） */
+.bars{display:grid; gap:var(--gap-in)}
+.bar{display:grid; grid-template-columns:11em 1fr auto; gap:0 16px; align-items:center;
+     font-family:var(--sans); font-size:14.5px}
+.bar .k{color:var(--ink-2)}
+.track{height:16px; background:var(--panel-2); position:relative}
+.fill{height:100%; display:block}
+.fill-a{background:var(--accent)}
+.fill-b{background:var(--mute)}
+.fill-c{background:var(--faint)}
+.bar .v{font-variant-numeric:tabular-nums; color:var(--ink); font-weight:600;
+        min-width:3.8em; text-align:right}
+
+/* 小倍数图（N 簇 × 3 指标） */
+.small-multiples{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:30px 40px}
+.sm{display:grid; gap:7px; align-content:start;
+    border-top:2px solid var(--rule); padding-top:14px}
+.sm-name{font-family:var(--sans); font-size:16px; font-weight:600; line-height:1.4;
+         margin-bottom:2px}
+.sm-name em{font-style:normal; color:var(--accent); font-variant-numeric:tabular-nums}
+.sm-row{display:grid; grid-template-columns:3.8em 1fr 3.4em; gap:10px; align-items:center;
+        font-family:var(--sans); font-size:13.5px; color:var(--mute)}
+.sm-row .t{height:11px; background:var(--panel-2); position:relative}
+.sm-row .v{font-variant-numeric:tabular-nums; text-align:right}
+.sm-type{font-family:var(--sans); font-size:13.5px; color:var(--mute); margin-top:6px}
+.sm-type.hot{color:var(--accent); font-weight:600}
+
+/* ---------- 引言块 ---------- */
+.pull{border-left:3px solid var(--accent); padding:3px 0 3px 26px; margin:34px 0;
+      font-size:21px; line-height:1.68; color:var(--ink)}
+.pull cite{display:block; font-family:var(--sans); font-size:14px; font-style:normal;
+           color:var(--mute); margin-top:12px; letter-spacing:.02em}
+
+/* ---------- 折叠（打印时自动全展开） ---------- */
+details{border-top:1px solid var(--rule); margin:0}
+details:last-of-type{border-bottom:1px solid var(--rule)}
+summary{font-family:var(--sans); font-size:16.5px; font-weight:600; cursor:pointer;
+        padding:16px 0; list-style:none; display:flex; gap:14px; align-items:baseline}
+summary::-webkit-details-marker{display:none}
+summary::after{content:"展开"; font-size:13px; font-weight:400; color:var(--mute);
+               margin-left:auto; letter-spacing:.06em}
+details[open] summary::after{content:"收起"}
+summary .tag{font-size:12.5px; color:var(--accent); font-variant-numeric:tabular-nums}
+details .body{padding:0 0 26px}
+details .body p:last-child{margin-bottom:0}
+
+/* ---------- 提示条（局限声明等） ---------- */
+.caveat{background:var(--panel); padding:22px 26px; margin:28px 0; font-size:17px;
+        line-height:1.72; color:var(--ink-2)}
+.caveat b{color:var(--accent)}
+
+/* ---------- 页脚 ---------- */
+footer{margin-top:88px; padding-top:28px; border-top:2px solid var(--ink);
+       font-family:var(--sans); font-size:14px; color:var(--mute); line-height:1.9}
+
+/* ==========================================================================
+   打印：与屏幕同比例 —— 同一套样式、同一个宽度比例，PDF 只是换个纸张
+   A4 210mm − 左右各 25mm = 160mm 内容宽，11pt 正文 → 41 字/行（与屏幕一致）
+   ========================================================================== */
+@media print{
+  @page{size:A4; margin:18mm 25mm}
+  body{background:#fff; font-size:11pt; line-height:1.78}
+  .page{width:100%; max-width:none; padding:0}
+  .masthead{padding-top:0}
+
+  /* 显式锁定多列布局，避免打印视口宽度触发窄屏规则 */
+  .verdict{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .small-multiples{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .bar{grid-template-columns:11em 1fr auto}
+  .sm-row{grid-template-columns:3.8em 1fr 3.4em}
+
+  /* 标题不许落在页尾；块级不许被切断；长表格按行分页并重复表头 */
+  h1,h2,h3,h4,summary{break-after:avoid; page-break-after:avoid}
+  figure,.pull,.caveat,.bars,.sm,.vcell,details,blockquote,figcaption{
+    break-inside:avoid; page-break-inside:avoid}
+  /* 高个子图表允许跨页，否则会把整页顶空 */
+  figure.tall{break-inside:auto; page-break-inside:auto}
+  .small-multiples{break-inside:auto; page-break-inside:auto}
+  .tw{break-inside:auto; page-break-inside:auto}
+  tr,td,th{break-inside:avoid; page-break-inside:avoid}
+  thead{display:table-header-group}
+
+  /* 折叠区全部展开 —— PDF 必须能看到 HTML 里被折叠的全部内容 */
+  details{border-color:#bbb}
+  details > .body{display:block !important}
+  details > summary{cursor:default}
+  summary::after{content:""}
+  /* 打印时折叠区一律展开，右侧的「收起／展开」提示要一起去掉。
+     注意必须带 details[open] 前缀：屏幕上那条 details[open] summary::after
+     的优先级更高，单写 summary::after 盖不住它。 */
+  details[open] summary::after{content:""}
+  summary::before{display:none}
+
+  /* 链接去装饰（打印件不能点，靠时间戳文字定位） */
+  a{color:var(--ink); border:0}
+  .ts{color:var(--ink-2); border-bottom:0}
+
+  /* 保留底色：条形图、来源标记、判定标签、定性卡 */
+  .verdict,.caveat,details[open]{-webkit-print-color-adjust:exact; print-color-adjust:exact}
+  .verdict{background:#F4F2ED !important}
+  .src-v{background:#1F2227 !important; color:#fff !important;
+    -webkit-print-color-adjust:exact; print-color-adjust:exact}
+  .src-c{background:#6E7681 !important; color:#fff !important;
+    -webkit-print-color-adjust:exact; print-color-adjust:exact}
+  .src-m{border-color:#9AA1A9 !important; color:#6E7681 !important}
+  .verd-no{background:#A63D2F !important; color:#fff !important;
+    -webkit-print-color-adjust:exact; print-color-adjust:exact}
+  .verd-tight{background:#EDEAE3 !important; color:#A63D2F !important;
+    -webkit-print-color-adjust:exact; print-color-adjust:exact}
+  .verd-ok{background:#EDEAE3 !important; color:#464C55 !important;
+    -webkit-print-color-adjust:exact; print-color-adjust:exact}
+  mark{background:#F0E4E0 !important; -webkit-print-color-adjust:exact;
+    print-color-adjust:exact}
+  .fill,.track,.rate i,.sm-row .t{-webkit-print-color-adjust:exact;
+    print-color-adjust:exact}
+  table{font-size:10pt}
+}
+/* 注意：必须限定 screen —— 打印时 A4 内容宽折算约 605px，不加限定会误用移动端布局 */
+@media screen and (max-width:860px){
+  body{font-size:17px}
+  h1{font-size:30px}
+  h2{font-size:26px}
+  h3{font-size:21px}
+  h4{font-size:19px}
+  .standfirst{font-size:18px}
+  .verdict{grid-template-columns:1fr; padding:22px}
+  .small-multiples{grid-template-columns:1fr; gap:24px}
+  .bar{grid-template-columns:1fr; gap:4px}
+  .pull{font-size:18px}
+}
+</style>
+</head>
+<body>
+<div class="page">
+<header class="masthead">
+  <p class="kicker">视频数据分析报告</p>
+  <h1>20261017-《「实测」越贵的AI越菜？我对各大AI工具进行了测试...》分析总结</h1>
+  <p class="standfirst">这是一次结构相当完整的自媒体横评：<b>20 道题、6 个 Agent、正确率／成本／耗时三维度</b>。结论「越贵越菜」<b>只在一半成立</b>——「档位溢价」成立，「产品定价」不成立，因为 Kimi 与 DeepSeek 的「贵」是计费方式折算出来的，不是真花了那么多钱。全片最大的方法论漏洞是成本口径跨产品不可比；评论区最有价值的也不是「谁最强」，而是<b>「你测的是模型还是 harness」</b>。</p>
+  <p class="meta"><span>BV11fJX6GEcL</span><span>UP 主 <b>Zhan丨</b></span><span>发布 2026-10-16 17:00</span><span>时长 7:41</span><span>抓取 2026-10-17 19:48（发布后约 27 小时）</span><span>评论样本 150 / 全站 889</span></p>
+</header>
+
+<section class="bleed">
+  <dl class="verdict">
+    <div class="vcell"><dt>视频类型</dt><dd>技术·工具横评（A 型），带一点财经式的成本账</dd></div>
+    <div class="vcell"><dt>主题</dt><dd>用自制 20 题试卷，横评 6 个 AI Agent 的日常办公能力</dd></div>
+    <div class="vcell"><dt>最核心主张</dt><dd>贵的不一定强；Agent 的「高级模式」常常只是更贵</dd></div>
+    <div class="vcell"><dt>说得对不对</dt><dd>部分成立：档位倒挂有硬证据，产品定价的「贵」被口径放大</dd></div>
+    <div class="vcell"><dt>能解决什么问题</dt><dd>选型的初筛：日常办公场景该把预算给谁、该不该开高级模式</dd></div>
+    <div class="vcell"><dt>成熟度</dt><dd>可用（实验设计够用，成本口径需重做）</dd></div>
+    <div class="vcell"><dt>数据侧写</dt><dd>赞／币 <b>4.74 : 1</b>；评论／点赞 <b>12.4%</b>；收藏／点赞 <b>67.7%</b></dd></div>
+    <div class="vcell"><dt>数据可靠性</dt><dd>发布仅 27 小时，各项计数仍在爬升，<b>绝对值不可引用</b></dd></div>
+    <div class="vcell"><dt>视频本身价值</dt><dd><span class="rate"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i><em>3 / 5 · 表格可用，口径待修</em></span></dd></div>
+    <div class="vcell"><dt>评论区价值</dt><dd><span class="rate"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i><em>4 / 5 · 唯一指出 harness 混淆的地方</em></span></dd></div>
+    <div class="vcell vcell-full"><dt>一句话</dt><dd>把它当中文互联网里少见的「愿意报数字」的横评来读，别当结论用——<b>它的证据比它的标题扎实得多</b>。</dd></div>
+  </dl>
+</section>
+
+<h2><span class="no">01</span><span>视频概览与定性<span class="sub">先看这份数据的可靠边界，再看它讲了什么</span></span></h2>
+
+<h3>1.1 数据侧写：这是一个「值得存档」的视频，不是一个「值得争论」的视频</h3>
+
+<p>四个比值先摆出来，它们比任何观感都更能说明这条视频的性质。<span class="src src-m">我推断</span></p>
+
+<div class="tw">
+<table>
+  <thead><tr><th style="width:26%">指标</th><th style="width:20%">数值</th><th>怎么读</th></tr></thead>
+  <tbody>
+    <tr><td>赞／币比</td><td class="n">7,180 / 1,516 = <b>4.74 : 1</b></td><td>介于「正经技术内容」（1.35 : 1）和「情绪段子」（≥20 : 1）之间。观众认为有留存价值，但不至于愿意为之付费。</td></tr>
+    <tr><td>收藏／点赞</td><td class="n">4,860 / 7,180 = <b>67.7%</b></td><td>本片最有信息量的一个数。<b>三分之二点赞的人同时点了收藏</b>——观众在存那张榜，不是在表态。这个比例远高于普通评论型内容。</td></tr>
+    <tr><td>评论／点赞</td><td class="n">889 / 7,180 = <b>12.4%</b></td><td>越过 10% 线，评论区是第二战场。取样因此放大到 150 条。</td></tr>
+    <tr><td>投币率</td><td class="n">1,516 / 142,389 = <b>1.06%</b></td><td>偏低的付费意愿。与 4.74 的赞币比互相印证：工具类横评很难让人「感动到投币」。</td></tr>
+  </tbody>
+</table>
+</div>
+
+<div class="caveat"><b>数据还在爬升期。</b>视频发布于 2026-10-16 17:00，本报告抓取于 2026-10-17 19:48，<b>距发布仅 27 小时</b>。上表所有绝对值（播放、点赞、硬币、评论）都会在两三天内明显变化，<b>只有比值方向可信，数字不可引用</b>。</div>
+
+<h3>1.2 主题、主张与它的三个隐含前提</h3>
+
+<p>视频要回答的问题很直白：六个主流 AI Agent，谁最适合日常学习办公。<span class="src src-v">视频说</span> <a class="ts" href="https://www.bilibili.com/video/BV11fJX6GEcL/?t=0" target="_blank" rel="noopener">00:00</a></p>
+
+<p>它实际给出的主张有两条，分量并不相同：</p>
+
+<div class="tw">
+<table>
+  <thead><tr><th style="width:24%">主张</th><th style="width:38%">它拿出的证据</th><th>隐含前提</th></tr></thead>
+  <tbody>
+    <tr><td><b>A. 贵的 AI 不一定强</b></td><td>Kimi（¥24.63）第 4、DeepSeek（¥20.84）第 6；Codex（¥2.26）第 1、WorkBuddy（¥0.97）第 2</td><td>各家报的「元」是同一把尺子。这一条<b>不成立</b>，见第六部分。</td></tr>
+    <tr><td><b>B. 高级模式常常只是更贵</b></td><td>WorkBuddy 快速 87.37 分／¥0.97，极致+MAX 80.68 分／¥28.66；豆包同向</td><td>两组用的是同一套题、同一时间窗。这一条<b>成立且干净</b>，是本片最硬的证据。</td></tr>
+  </tbody>
+</table>
+</div>
+
+<p>还有三个没写在片子里的前提，读者需要自己补上：<b>其一</b>，20 道题能代表「日常办公」（片子自己在 <a class="ts" href="https://www.bilibili.com/video/BV11fJX6GEcL/?t=426" target="_blank" rel="noopener">07:06</a> 承认了题量不足）；<b>其二</b>，跨产品的「元」可比；<b>其三</b>，各家默认档就是公平起点。<span class="src src-m">我推断</span></p>
+
+<h3>1.3 逐项判定</h3>
+
+<div class="tw">
+<table>
+  <thead><tr><th style="width:33%">视频的说法</th><th style="width:40%">证据（片内可核对）</th><th style="width:27%">判定</th></tr></thead>
+  <tbody>
+    <tr><td>Agent 高级模式不一定更好用，有时只是更贵</td><td>WorkBuddy 成本 ×29.5、分数 −6.69；豆包成本 ×21.2、分数 −3.79</td><td><span class="verd verd-ok">基本可信</span>两组同向，且题目分开统计</td></tr>
+    <tr><td>最贵的两个排在最后</td><td>Kimi ¥24.63 第 4；DeepSeek ¥20.84 第 6</td><td><span class="verd verd-tight">要收紧</span>「元」是积分／额度折算，非实际支出</td></tr>
+    <tr><td>表格任务随便找个 AI 都能干</td><td>3 道表格题，6 家除豆包一处 3.92 外全是满分</td><td><span class="verd verd-ok">基本可信</span></td></tr>
+    <tr><td>数据分析题只有 Codex 三题全对</td><td>陷阱题（123 条 + 21 条空白 = 144 条）只有 Codex、豆包、千问答对</td><td><span class="verd verd-ok">基本可信</span></td></tr>
+    <tr><td>做 PPT 各家表现都很接近</td><td>6 家均 8–9 页，都犯「没按需求重述总成本」的同类错误</td><td><span class="verd verd-ok">基本可信</span></td></tr>
+    <tr><td>网页能力千问与 DeepSeek 更好</td><td>千问 9.26（34.7 分钟）、DeepSeek 9.11（¥1.12）</td><td><span class="verd verd-tight">要收紧</span>一个靠时间堆、一个靠钱堆，不是同一维度的好</td></tr>
+    <tr><td>榜单「满分 100 分」</td><td>脚注写「办公题满分 73.5、代码题满分 23.5」，合计 <b>97</b></td><td><span class="verd verd-no">被推翻</span>实际可得分上限是 97，不是 100</td></tr>
+    <tr><td>本期视频无任何商业推广</td><td>简介与片头均声明；评论区有「盲猜是 workbuddy 商单」</td><td><span class="verd verd-tight">无法核实</span>无证据表明是商单，也无证据排除</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h3>1.4 分人群的价值</h3>
+
+<p><b>要选工具的人</b>：这张榜能当第一道筛子，尤其「表格三题全部接近满分」这个结论可以直接省掉你很多试错。<b>要抄配置的人</b>：会失望——片子里「Codex 开到 Ultra 就能解决一切」是唯一给出的配置建议，它同时意味着成本失控。<b>要做评测的人</b>：值得逐帧看它的题目设计和分值分布，尤其那道「144 条规则」的陷阱题，是整片设计水平最高的一处。<span class="src src-m">我推断</span></p>
+
+<h2><span class="no">02</span><span>视频核心总结<span class="sub">绪论立靶、本论三层证据、结论让步，以及链条断在哪</span></span></h2>
+
+<h3>2.1 绪论：先把「严谨」这件事自我定价</h3>
+
+<p>片子的开场做了一件少见的事：<b>主动给自己的严谨度定档</b>——「从 6 个全球知名的 bench 精选 20 道由易到难的题」，并声明「比学术界不足，比自媒体界有余」，随后补一句「如果你说你的视频比我更严谨，那么无须争辩，我将直接认同」。<span class="src src-v">视频说</span> <a class="ts" href="https://www.bilibili.com/video/BV11fJX6GEcL/?t=37" target="_blank" rel="noopener">00:37</a> <a class="ts" href="https://www.bilibili.com/video/BV11fJX6GEcL/?t=65" target="_blank" rel="noopener">01:05</a></p>
+
+<p>这句话在传播上是加分项（先认怂，后手就没人挑），在方法论上是减分项——它把「够不够严谨」变成了不可讨论的话题。评论区最尖锐的那批人，恰恰是从这里开始不买账的。</p>
+
+<h3>2.2 本论：三层证据，一层比一层硬</h3>
+
+<p><b>第一层·总榜。</b>六个 Agent 的分数咬得很紧：第 1 到第 5 名只差 14.36 分，其中第 4、第 5 名（78.60 与 78.20）几乎同分。真正拉开档次的是第 6 名 DeepSeek——73.70，且只过关 12/20。<span class="src src-v">视频说</span> <a class="ts" href="https://www.bilibili.com/video/BV11fJX6GEcL/?t=65" target="_blank" rel="noopener">01:05</a></p>
+
+<div class="tw">
+<table>
+  <thead><tr><th style="width:5%">#</th><th style="width:22%">Agent</th><th style="width:12%">过关</th><th style="width:11%">办公分</th><th style="width:11%">代码分</th><th style="width:11%">总分</th><th style="width:12%">成本</th><th>每元得分</th></tr></thead>
+  <tbody>
+    <tr><td class="n">1</td><td>Codex（OpenAI）</td><td class="n">17 / 20</td><td class="n">73.93</td><td class="n">18.63</td><td class="n"><b>92.56</b></td><td class="n">¥2.26</td><td class="n">40.96</td></tr>
+    <tr><td class="n">2</td><td>WorkBuddy 快速（腾讯）</td><td class="n">16 / 20</td><td class="n">68.69</td><td class="n">18.68</td><td class="n"><b>87.37</b></td><td class="n">¥0.97</td><td class="n"><b>90.07</b></td></tr>
+    <tr><td class="n">3</td><td>豆包工作（字节跳动）</td><td class="n">16 / 20</td><td class="n">65.81</td><td class="n">16.33</td><td class="n"><b>82.14</b></td><td class="n">¥1.50</td><td class="n">54.76</td></tr>
+    <tr><td class="n">4</td><td>Kimi Work（月之暗面）</td><td class="n">16 / 20</td><td class="n">61.68</td><td class="n">16.92</td><td class="n"><b>78.60</b></td><td class="n">¥24.63</td><td class="n">3.19</td></tr>
+    <tr><td class="n">5</td><td>千问办公（阿里巴巴）</td><td class="n">16 / 20</td><td class="n">58.94</td><td class="n">19.26</td><td class="n"><b>78.20</b></td><td class="n">¥1.41</td><td class="n">55.46</td></tr>
+    <tr><td class="n">6</td><td>DeepSeek（深度求索）</td><td class="n">12 / 20</td><td class="n">54.59</td><td class="n">19.11</td><td class="n"><b>73.70</b></td><td class="n">¥20.84</td><td class="n">3.54</td></tr>
+  </tbody>
+</table>
+</div>
+
+<p>注意最后一列：<b>「每元得分」的跨度是 28 倍</b>（90.07 对 3.19）。这个数是我用视频自己的成本列算的，不是它给的（见第五部分）。<span class="src src-m">我推断</span></p>
+
+<p><b>第二层·档位对照。</b>这是全片最硬的一段。同一个产品、同一套题，只换档位，分数反而下降：</p>
+
+<div class="tw">
+<table>
+  <thead><tr><th style="width:26%">档位</th><th style="width:12%">过关</th><th style="width:12%">总分</th><th style="width:14%">成本</th><th style="width:16%">成本倍数</th><th>分数变化</th></tr></thead>
+  <tbody>
+    <tr><td>WorkBuddy 快速</td><td class="n">16 / 20</td><td class="n">87.37</td><td class="n">¥0.97</td><td class="n">1.0×</td><td class="n">基准</td></tr>
+    <tr><td>WorkBuddy 极致+MAX</td><td class="n">15 / 20</td><td class="n">80.68</td><td class="n">¥28.66</td><td class="n"><b>29.5×</b></td><td class="n">−6.69</td></tr>
+    <tr><td>豆包工作 自动（前 8 题）</td><td class="n">7 / 8</td><td class="n">26.08</td><td class="n">¥0.66</td><td class="n">1.0×</td><td class="n">基准</td></tr>
+    <tr><td>豆包工作 2.1 Pro（前 8 题）</td><td class="n">5 / 8</td><td class="n">22.29</td><td class="n">¥13.99</td><td class="n"><b>21.2×</b></td><td class="n">−3.79</td></tr>
+  </tbody>
+</table>
+</div>
+
+<p>片方给出的机制解释也具体：差异「主要来自一道检索题」——那道要求跨年份、跨法条定位的多跳题，快速模式想 22 分钟答对，极致模式想 36 分钟答错。豆包 2.1 Pro 更直接：<b>8 道题就把一周额度用完了</b>，所以只能对比前 8 题。<span class="src src-v">视频说</span> <a class="ts" href="https://www.bilibili.com/video/BV11fJX6GEcL/?t=119" target="_blank" rel="noopener">01:59</a> <a class="ts" href="https://www.bilibili.com/video/BV11fJX6GEcL/?t=148" target="_blank" rel="noopener">02:28</a></p>
+
+<p><b>第三层·分项能力。</b>这一层暴露了总分榜掩盖的东西。</p>
+
+<div class="tw">
+<table>
+  <thead><tr><th style="width:16%">能力</th><th style="width:10%">题量</th><th style="width:40%">结果</th><th>解读</th></tr></thead>
+  <tbody>
+    <tr><td>表格</td><td class="n">3</td><td>6 家几乎全部满分；唯一失分是豆包考勤题 3.92／4</td><td>已商品化，不值得为它付溢价</td></tr>
+    <tr><td>数据分析</td><td class="n">3</td><td>只有 Codex 三题全对；陷阱题仅 Codex、豆包、千问答对</td><td>真正的分水岭</td></tr>
+    <tr><td>PPT</td><td class="n">1</td><td>均 8–9 页，图表清晰；都有排版与「未按需求重述总成本」的小错</td><td>差距在细节，不在能力</td></tr>
+    <tr><td>检索</td><td class="n">2</td><td>除那道法律多跳题外，全部答对</td><td>常规检索已不成问题</td></tr>
+    <tr><td>网页</td><td class="n">3</td><td>千问 9.26 → 豆包 6.33；豆包上传 Excel 直接解析失败</td><td>拉开 2.93 分，但代价是 34.7 分钟</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h3>2.3 结论：一句真正有价值的让步，被放在最后 30 秒</h3>
+
+<p>片子结尾主动认了三件事：题目总量少、不能绝对还原真实能力、主实验只测默认模式，未来应加入「同 Agent 不同模型」「同模型不同 Agent」以及多模态赛道。<span class="src src-v">视频说</span> <a class="ts" href="https://www.bilibili.com/video/BV11fJX6GEcL/?t=426" target="_blank" rel="noopener">07:06</a></p>
+
+<p>这段话的分量被放在片尾严重低估了——它其实自己指出了全片的结构性问题：<b>这次测的对象是「Agent 产品」，不是「模型」</b>。而标题卖的是「AI」。</p>
+
+<h3>2.4 链条断在哪四处</h3>
+
+<div class="tw">
+<table>
+  <thead><tr><th style="width:22%">断点</th><th style="width:44%">具体表现</th><th>后果</th></tr></thead>
+  <tbody>
+    <tr><td>成本不可比</td><td>网页排名表里，「花费」列混用积分（46.8／13.0）、额度百分比（4.23% 月额度）、按量（¥1.12）、点数（5 点 5 小时额度）</td><td>再折算成「元」放进同一列，跨产品结论失效</td></tr>
+    <tr><td>模型与 harness 混在一起</td><td>六个被测对象是「模型 + 外围工程」的组合，且组合方式不对等</td><td>「谁强」无法归因到模型，也无法归因到产品</td></tr>
+    <tr><td>「满分 100」不成立</td><td>办公 73.5 + 代码 23.5 = 97</td><td>所有分数实际是在 97 分制下的百分比，标题口径错 3 分</td></tr>
+    <tr><td>一次实验定生死</td><td>供应商降智、服务器波动都未控制；DeepSeek 单题就跑了 43 分钟</td><td>单次结果对「今天能不能用」敏感，对「能力上限」不敏感</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h2><span class="no">03</span><span>评论区概览与总结<span class="sub">889 条里取热度前 150 条，聚成 7 簇</span></span></h2>
+
+<h3>3.1 结构侧写</h3>
+
+<p>取样：热度排序前 150 条（含楼中楼），占全站 889 条的 <b>16.9%</b>；其中顶层评论 88 条、楼中楼 62 条。剔除纯表情、无关、引流后，<b>有效样本 58 条</b>（65.9%）。顶层评论里 <b>23.9% 是 0 赞</b>，与既有实测一致：热度前段的尾部已开始出现附和与复制。<span class="src src-m">我推断</span></p>
+
+<div class="caveat"><b>三条取样偏差，必须写在读之前。</b>第一，样本按热度取，所以下面的分布是「<b>热度样本内</b>的分布」，不是全站分布。第二，点赞随时间累积，早期评论天然占优——本片才 27 小时，这个偏差比成熟视频更大。第三，楼中楼只抓到每楼前 3 条，但争议度用的是全量真实回复数。</div>
+
+<p class="metrics"><b>普遍度</b>＝该簇条数 ÷ 有效样本 58（在问：多少人<b>提到</b>）<br><b>认同度</b>＝该簇点赞合计 ÷ 顶层点赞合计 4,554（在问：多少人<b>认同</b>）<br><b>争议度</b>＝该簇楼中楼回复合计 ÷ 顶层回复合计 240（在问：多少人<b>愿意为它争</b>）</p>
+
+<p>三个轴不可通约，因此不做加权合成——合成需要权重，没有理由的权重就是伪精度。</p>
+
+<h3>3.2 观点谱</h3>
+
+<figure class="bleed tall">
+  <div class="small-multiples">
+    <div class="sm">
+      <div class="sm-name">Claude 缺席与账号被封 <em>10 条</em></div>
+      <div class="sm-row"><span>普遍度</span><span class="t"><span class="fill fill-b" style="display:block;width:43%"></span></span><span class="v">17.2%</span></div>
+      <div class="sm-row"><span>认同度</span><span class="t"><span class="fill fill-a" style="display:block;width:92%"></span></span><span class="v">36.8%</span></div>
+      <div class="sm-row"><span>争议度</span><span class="t"><span class="fill fill-a" style="display:block;width:76%"></span></span><span class="v">30.4%</span></div>
+      <div class="sm-type hot">主战场：认同与争议双高，全站最高赞的信息藏在楼中楼</div>
+    </div>
+    <div class="sm">
+      <div class="sm-name">测的是模型还是 harness <em>9 条</em></div>
+      <div class="sm-row"><span>普遍度</span><span class="t"><span class="fill fill-b" style="display:block;width:39%"></span></span><span class="v">15.5%</span></div>
+      <div class="sm-row"><span>认同度</span><span class="t"><span class="fill fill-b" style="display:block;width:6%"></span></span><span class="v">2.5%</span></div>
+      <div class="sm-row"><span>争议度</span><span class="t"><span class="fill fill-b" style="display:block;width:20%"></span></span><span class="v">7.9%</span></div>
+      <div class="sm-type hot">被围攻：认同度倒数第二，却是唯一有方法论价值的簇</div>
+    </div>
+    <div class="sm">
+      <div class="sm-name">成本·额度·使用门槛 <em>8 条</em></div>
+      <div class="sm-row"><span>普遍度</span><span class="t"><span class="fill fill-b" style="display:block;width:35%"></span></span><span class="v">13.8%</span></div>
+      <div class="sm-row"><span>认同度</span><span class="t"><span class="fill fill-b" style="display:block;width:32%"></span></span><span class="v">12.9%</span></div>
+      <div class="sm-row"><span>争议度</span><span class="t"><span class="fill fill-b" style="display:block;width:13%"></span></span><span class="v">5.0%</span></div>
+      <div class="sm-type">共识区：点头的多，辩的少</div>
+    </div>
+    <div class="sm">
+      <div class="sm-name">逐个工具的点名体验 <em>10 条</em></div>
+      <div class="sm-row"><span>普遍度</span><span class="t"><span class="fill fill-b" style="display:block;width:43%"></span></span><span class="v">17.2%</span></div>
+      <div class="sm-row"><span>认同度</span><span class="t"><span class="fill fill-b" style="display:block;width:16%"></span></span><span class="v">6.3%</span></div>
+      <div class="sm-row"><span>争议度</span><span class="t"><span class="fill fill-a" style="display:block;width:49%"></span></span><span class="v">19.6%</span></div>
+      <div class="sm-type hot">次战场：Kimi 与 DeepSeek 是主要挨打对象</div>
+    </div>
+    <div class="sm">
+      <div class="sm-name">按场景分工·组合使用 <em>7 条</em></div>
+      <div class="sm-row"><span>普遍度</span><span class="t"><span class="fill fill-b" style="display:block;width:30%"></span></span><span class="v">12.1%</span></div>
+      <div class="sm-row"><span>认同度</span><span class="t"><span class="fill fill-b" style="display:block;width:6%"></span></span><span class="v">2.2%</span></div>
+      <div class="sm-row"><span>争议度</span><span class="t"><span class="fill fill-b" style="display:block;width:21%"></span></span><span class="v">8.3%</span></div>
+      <div class="sm-type">分歧带：说法都对，但谁也没说服谁</div>
+    </div>
+    <div class="sm">
+      <div class="sm-name">结论速览与「谁最强」 <em>5 条</em></div>
+      <div class="sm-row"><span>普遍度</span><span class="t"><span class="fill fill-b" style="display:block;width:22%"></span></span><span class="v">8.6%</span></div>
+      <div class="sm-row"><span>认同度</span><span class="t"><span class="fill fill-b" style="display:block;width:12%"></span></span><span class="v">4.6%</span></div>
+      <div class="sm-row"><span>争议度</span><span class="t"><span class="fill fill-b" style="display:block;width:5%"></span></span><span class="v">2.1%</span></div>
+      <div class="sm-type">边缘：省流党的自留地</div>
+    </div>
+    <div class="sm">
+      <div class="sm-name">缺席名单与商单质疑 <em>9 条</em></div>
+      <div class="sm-row"><span>普遍度</span><span class="t"><span class="fill fill-b" style="display:block;width:39%"></span></span><span class="v">15.5%</span></div>
+      <div class="sm-row"><span>认同度</span><span class="t"><span class="fill fill-b" style="display:block;width:1%"></span></span><span class="v">0.5%</span></div>
+      <div class="sm-row"><span>争议度</span><span class="t"><span class="fill fill-b" style="display:block;width:3%"></span></span><span class="v">1.2%</span></div>
+      <div class="sm-type">边缘：问的人不少，没人为它辩护</div>
+    </div>
+  </div>
+  <figcaption><b>怎么读</b>：每个方格是一类观点，三行分别是三个轴；条形统一按 40% 满刻度绘制，便于跨簇比较，右侧数字是该轴的真实占比。<b>口径</b>：仅统计 88 条顶层评论（楼中楼无 rcount），有效样本 58 条；认同度以顶层点赞 4,554 为分母，争议度以顶层回复 240 为分母。</figcaption>
+</figure>
+
+<h3>3.3 三条反常发现</h3>
+
+<p><b>一、全站最高赞的那句话，不在顶层评论里。</b>顶层第一高赞是 758 赞的「没有Claude的原因be like：」，一句没有任何信息量的引子。真正的答案在它的楼中楼里——UP 主本人回复「小克还没测完，号封了」，<b>1,927 赞</b>，是顶层第一名的 2.5 倍。热度排序把全片最关键的补丁埋在了第二层。<span class="src src-c">评论说</span></p>
+
+<p><b>二、认同度与信息量成反比，这次尤其极端。</b>「测的是模型还是 harness」这一簇，普遍度排并列第一（15.5%），认同度只有 2.5%——全场倒数第二。而零信息的「其实」「[微笑]」这类水帖合计拿走了 34.1% 的点赞。<b>热度奖励的是「短、狠、能表态」，惩罚的是「长、要条件、读完还不能一句话反驳」</b>。<span class="src src-m">我推断</span></p>
+
+<p><b>三、最有分量的一条经验，藏在最不起眼的楼中楼。</b>一条 44 赞的回复说「Workbuddy 调用最多的是 DS，因为便宜量大」。如果成立（无人核实），<b>同一个底层模型，在 WorkBuddy 里排第 2，在 DeepSeek 自家产品里排第 6</b>。那这份榜单测的到底是什么，答案就自己浮出来了。<span class="src src-c">评论说</span><span class="src src-m">我推断</span></p>
+
+<h2><span class="no">04</span><span>评论区核心总结<span class="sub">逐簇展开，按内容密度排序，不按数据大小排序</span></span></h2>
+
+<h3>4.1 控制变量之问：你测的是模型，还是 harness</h3>
+
+<p><b>结论先行</b>：这是全场唯一触及方法论要害的一簇，也是认同度倒数第二的一簇。<span class="src src-m">我推断</span></p>
+
+<p><b>他们的论证</b>分三层，一层比一层具体：<span class="src src-c">评论说</span></p>
+
+<div class="pull">
+  似乎对 deepseek harness 不太公平，dsh 是一个裸 runtime，他的核心是自定义插件系统。而 workbuddy、豆包等已经内置了大量工程优化。只能说对于有工程能力的人来说，dsh 的生态位在最高一档。对于 AI 小白来说，dsh 没有实用价值。
+  <cite>@码农阿禹 · 32 赞 · 4 条回复</cite>
+</div>
+
+<p>第一层是「不公平」：DeepSeek Harness 是裸 runtime，其余几家是成品 Agent，等于让一个人光脚和别人穿鞋跑。第二层是「测错了对象」：「比的啥，大模型还是 harness？还是各种组合，控制变量呢」——这条 11 赞。第三层最狠，直接指向概念混乱：「还有评论区一堆分不清模型和框架的给我看力竭了，科普类视频前面应该先把概念申明清楚」——7 赞，0 回复，没人接。</p>
+
+<p><b>与视频的对照</b>：视频在 <a class="ts" href="https://www.bilibili.com/video/BV11fJX6GEcL/?t=0" target="_blank" rel="noopener">00:00</a> 问的是「六个 AI 工具谁最强」，在 <a class="ts" href="https://www.bilibili.com/video/BV11fJX6GEcL/?t=426" target="_blank" rel="noopener">07:06</a> 才承认「主实验中别的对象均为各大 Agent 的默认模式」。<b>它知道问题在哪，但只放在片尾的一句免责里。</b>这一簇的批评成立，且比视频自己的免责更准确：不只是一次实验测不了「模型能力」，而是这次实验连「Agent 产品能力」都测不准——因为六家的默认档并不同质。<span class="src src-m">我推断</span></p>
+
+<h3>4.2 Claude 为什么不在榜上：一个由 UP 主自己补的洞</h3>
+
+<p><b>结论先行</b>：这不是评论区的猜测，是事实，且由 UP 主亲口确认——<b>测到一半账号被封</b>。<span class="src src-c">评论说</span></p>
+
+<p>问题的热度远超其他任何话题：顶层前十里四条都在问「克老师去哪了」（「没有Claude的原因be like」758 赞、「怎么没有我们克老师」364 赞 46 回复、「猜猜少了谁」236 赞、「我要点名一家 A 开头的公司」202 赞）。而答案只出现了一次，在 758 赞那条的楼中楼：<b>「小克还没测完，号封了」——1,927 赞。</b></p>
+
+<p>这条回复带出的连锁反应比它本身更有意思。评论区迅速分成两拨：一拨把它当成 Claude 依旧最强的证据（「那感觉 claude 登顶了，gpt 和 claude 感觉是 87 分和 95 分的区别」），另一拨当成 Claude 已经不行了的证据（「谁是第一不重要，claude 是真拉完了」「工作的话 Claude 目前还是遥遥领先」——这两条互相矛盾，却都拿到了赞）。<span class="src src-c">评论说</span></p>
+
+<p><b>与视频的对照</b>：视频里完全没有提这件事。这是一个信息缺口——<b>缺失的那个选手，恰好是很多人心中的默认答案</b>。榜单缺了 Claude，等于把「谁最强」这个问题永久悬置了。片方的处理方式（不解释、不声明）比解释更省事，也更损公信力。<span class="src src-m">我推断</span></p>
+
+<h3>4.3 真实付费体验：榜单上的「元」，和用户口袋里的「元」不是一回事</h3>
+
+<p><b>结论先行</b>：这一簇的认同度排第三（12.9%），争议度很低（5.0%）——说明它是共识，而且是<b>有支付经验的人之间的共识</b>。<span class="src src-m">我推断</span></p>
+
+<p>评论区给出的真实价格结构，比视频的成本列具体得多：WorkBuddy「每天 100 积分，逢年过节还送个大几百一千，基本用不完」（57 赞）；豆包 2.1 Pro「只跑了 8 道题就把一周额度用完了」（这是片方自己说的）；Qoder「给我做了两个 PPT 一共就 20 来页，中档 150 多块钱的 credits 干没了一半」（0 赞，但信息密度最高）。<span class="src src-c">评论说</span></p>
+
+<p>还有一条把「贵」的另一种形态点了出来：「最强 ai 工具是不要钱的实习生，因为实习生会自费买 ai 工具」——571 赞，全场第二。它是个段子，但它说的是一件事：<b>在真实工作流里，「成本」从来不只等于 API 账单</b>，还包括订阅、额度、翻墙、验证码、账号风险。<span class="src src-c">评论说</span></p>
+
+<p><b>与视频的对照</b>：视频把成本压成了一个数（¥），评论区把它拆回了四种形态（积分／额度／按量／订阅），还额外加了「账号会不会被封」这一项。后者是这份榜单完全没有度量的隐性成本，而它刚刚让一个选手退赛。<span class="src src-m">我推断</span></p>
+
+<h3>4.4 挨打名单：Kimi、DeepSeek、豆包各自的差评形状不同</h3>
+
+<p><b>结论先行</b>：这一簇争议度排第二（19.6%），但差评的性质完全不同——Kimi 被骂「性价比」，DeepSeek 被骂「稳定性」，豆包被骂「能力」。</p>
+
+<div class="tw">
+<table>
+  <thead><tr><th style="width:16%">对象</th><th style="width:46%">代表性差评</th><th>差评的性质</th></tr></thead>
+  <tbody>
+    <tr><td>Kimi</td><td>「Kimi 真的是拉完了，卡、慢、贵全占完了，算力比不上 gpt，价格比肩 Claude」</td><td>性价比问题，与榜单第 4 名、¥24.63 吻合</td></tr>
+    <tr><td>DeepSeek</td><td>「我昨天着急用 deepseek，但显示服务器重试，所以 deepseek 最菜。真没带情绪啊，绝对没带」（59 赞，12 回复）；「deepseek 昨天告诉我，做漫剧的占用了它 60% 算力，内存崩了」</td><td>可用性问题，不是能力问题</td></tr>
+    <tr><td>豆包</td><td>「可怜的豆包天天被跟奶蛙拴在一起」；另有实测「我用围棋测试过这几个，赢到最后的是豆包，但最 sb 的是 kimi，每次下二十手就直接投降」</td><td>口碑问题，与榜单第 3 名不矛盾</td></tr>
+  </tbody>
+</table>
+</div>
+
+<p><b>与视频的对照</b>：视频只测「一次性任务完成度」，评论区补的是「反复使用时的体验」。这两个维度会给出不同的排名——DeepSeek 在片子里输在「想太久还想错」，在评论区输在「关键时刻连不上」。<b>后者对日常使用的杀伤力更大，但它无法被一次性实验测出来。</b><span class="src src-m">我推断</span></p>
+
+<h3>4.5 省流党与分工派：两种都不算错的读法</h3>
+
+<p><b>结论先行</b>：这两簇加起来只有 12 条，却是评论区的「实际结论」——大多数人读完并没有记住 87.37 或 92.56，记住的是「GPT 拉满」和「按场景分工」。<span class="src src-m">我推断</span></p>
+
+<p>省流派：「省流：gpt6 Astra ultra」（116 赞）、「省流 GPT6 拉满，解决你所有问题，除了钱的问题」（86 赞）。分工派：「事实是所有一起用，针对工作流的不同子任务安排不同 ai」（19 赞）、「vibe coding claude 是天，其它无脑 gpt」（43 赞）、「作为技术人，有 claude 选 Claude，没有选 qoder」（22 赞）。<span class="src src-c">评论说</span></p>
+
+<p><b>与视频的对照</b>：视频用一张榜回答了「谁第一」，评论区用一句话否掉了这个问题——<b>「第一」在真实工作流里不存在，只有「这个子任务用谁」</b>。这也解释了为什么 WorkBuddy 拿了第 2 却没人讨论它：<b>它赢在「每元得分」，而这种赢法不产生故事</b>。<span class="src src-m">我推断</span></p>
+
+<h3>4.6 缺席名单与商单质疑：问的人多，辩护的人为零</h3>
+
+<p><b>结论先行</b>：这是认同度最低的一簇（0.5%），不是因为它错，而是因为它是「提问」而不是「主张」——提问不需要别人点赞。<span class="src src-m">我推断</span></p>
+
+<p>被点名的缺席者：Gemini（「Gemini4 和 gork 呢」）、Grok、GLM（「为什么没有 GLM 啊」）、腾讯元宝（「腾讯元宝怎么说」）、Trae（「trae 呢？？？」）、Coze（「coze 跟这些是啥关系」）。加上 Claude，<b>这份「六大」名单至少漏掉了五个在中文用户里有人用的选项</b>。<span class="src src-c">评论说</span></p>
+
+<p>商单质疑只有两条，且都没展开：「盲猜是 workbuddy 商单」（9 赞）、「没有推广谁投的流？」（1 赞）。<b>没有找到任何证据支持这个猜测</b>，片方在简介和片头都做了否认，且榜单第 1 名并不是 WorkBuddy——如果要做商单，这个排法并不聪明。<span class="src src-m">我推断</span></p>
+
+<div class="caveat"><b>一条利益相关的声明。</b>本报告由运行在 WorkBuddy 中的助手生成，而本次榜单的第 2 名正是 WorkBuddy。上面所有关于它的判断都基于片内数字与评论区原文，但没有第三方复核；<b>读者对这一节可以自行打折</b>。</div>
+
+<h2><span class="no">05</span><span>关键参数与对照时间点<span class="sub">速查层：所有能抄走的数字</span></span></h2>
+
+<h3>5.1 六家总账</h3>
+
+<div class="tw">
+<table>
+  <thead><tr><th style="width:24%">参数</th><th style="width:36%">数值</th><th>口径与陷阱</th></tr></thead>
+  <tbody>
+    <tr><td>满分</td><td class="n">宣称 100，实际 <b>97</b></td><td>办公 73.5 + 代码 23.5；所有分数应按 97 分制理解</td></tr>
+    <tr><td>题量</td><td class="n">20 题</td><td>来源为 6 个公开 bench 精选；题量少，片方自认</td></tr>
+    <tr><td>能力维度</td><td class="n">5 类</td><td>表格 3、数据分析 3、PPT 1、检索 2、网页 3（据片中题号反推）</td></tr>
+    <tr><td>重复次数</td><td class="n">「多次独立重复」</td><td>未公布具体次数，也未公布如何取平均</td></tr>
+    <tr><td>成本列</td><td class="n">¥0.97 – ¥24.63</td><td><b>最大陷阱</b>：混用积分、额度百分比、按量、点数折算，汇率未公开</td></tr>
+    <tr><td>耗时列</td><td class="n">7.3 – 34.7 分钟</td><td>仅网页分项表给出；总榜未列耗时</td></tr>
+    <tr><td>对话记忆</td><td class="n">「尽可能隔离」</td><td>未说明隔离方式，跨题污染无法排除</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h3>5.2 档位倒挂的两个样本</h3>
+
+<div class="tw">
+<table>
+  <thead><tr><th style="width:26%">对比项</th><th style="width:18%">WorkBuddy</th><th style="width:18%">豆包</th><th>读法</th></tr></thead>
+  <tbody>
+    <tr><td>低档成本</td><td class="n">¥0.97</td><td class="n">¥0.66</td><td>两家低档都在 1 元以内</td></tr>
+    <tr><td>高档成本</td><td class="n">¥28.66</td><td class="n">¥13.99</td><td>高档是低档的 21–30 倍</td></tr>
+    <tr><td>成本倍数</td><td class="n">29.5×</td><td class="n">21.2×</td><td>片方口播说「30 倍」，量级无误</td></tr>
+    <tr><td>分数变化</td><td class="n">87.37 → 80.68</td><td class="n">26.08 → 22.29</td><td>两家高档都更差</td></tr>
+    <tr><td>触发原因</td><td>一道检索题想太久想错</td><td>额度耗尽，只跑完 8 题</td><td>机制不同，结论同向</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h3>5.3 对照时间点</h3>
+
+<div class="tw">
+<table>
+  <thead><tr><th style="width:12%">时间</th><th style="width:34%">内容</th><th>为什么要看这一处</th></tr></thead>
+  <tbody>
+    <tr><td><a class="ts" href="https://www.bilibili.com/video/BV11fJX6GEcL/?t=37" target="_blank" rel="noopener">00:37</a></td><td>试卷设计：6 个 bench、20 道题</td><td>「比学术界不足，比自媒体界有余」的自我定档在这</td></tr>
+    <tr><td><a class="ts" href="https://www.bilibili.com/video/BV11fJX6GEcL/?t=65" target="_blank" rel="noopener">01:05</a></td><td>总榜与满分脚注</td><td>73.5 + 23.5 = 97 的缺口在这一帧</td></tr>
+    <tr><td><a class="ts" href="https://www.bilibili.com/video/BV11fJX6GEcL/?t=119" target="_blank" rel="noopener">01:59</a></td><td>WorkBuddy 档位对照表</td><td>87.37 / ¥0.97 与 80.68 / ¥28.66 同屏</td></tr>
+    <tr><td><a class="ts" href="https://www.bilibili.com/video/BV11fJX6GEcL/?t=148" target="_blank" rel="noopener">02:28</a></td><td>豆包档位对照 + 额度说明</td><td>「2.1 Pro 只跑 8 题就用完一周额度」</td></tr>
+    <tr><td><a class="ts" href="https://www.bilibili.com/video/BV11fJX6GEcL/?t=204" target="_blank" rel="noopener">03:24</a></td><td>表格三题得分表</td><td>6 家几乎全满分，唯一失分是豆包 3.92</td></tr>
+    <tr><td><a class="ts" href="https://www.bilibili.com/video/BV11fJX6GEcL/?t=234" target="_blank" rel="noopener">03:54</a></td><td>数据分析陷阱题</td><td>123 + 21 = 144 条的推理链，全片设计最好的一题</td></tr>
+    <tr><td><a class="ts" href="https://www.bilibili.com/video/BV11fJX6GEcL/?t=315" target="_blank" rel="noopener">05:15</a></td><td>PPT 六家成品并排</td><td>差距在排版细节，不在能力</td></tr>
+    <tr><td><a class="ts" href="https://www.bilibili.com/video/BV11fJX6GEcL/?t=367" target="_blank" rel="noopener">06:07</a></td><td>网页题：读 Excel</td><td>豆包上传 Excel 解析失败，是唯一硬故障</td></tr>
+    <tr><td><a class="ts" href="https://www.bilibili.com/video/BV11fJX6GEcL/?t=397" target="_blank" rel="noopener">06:37</a></td><td>网页能力排名表</td><td>「花费」列单位混乱的证据在这一帧</td></tr>
+    <tr><td><a class="ts" href="https://www.bilibili.com/video/BV11fJX6GEcL/?t=426" target="_blank" rel="noopener">07:06</a></td><td>局限性自述</td><td>片方自己承认只测了默认档</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h2><span class="no">06</span><span>内容纠偏<span class="sub">速查层：哪些数字不能直接引</span></span></h2>
+
+<h3>6.1 字幕来源：本片无官方字幕，本报告的底稿是本地转写</h3>
+
+<p>B站侧未提供可用字幕，因此本报告用本机 faster-whisper（large-v3，float16，BatchedInferencePipeline）自行转写，7.7 分钟音频耗时 26.6 秒（17.3× 实时）。<b>这意味着逐字稿本身不可作为引用</b>——它是机器转写，不是 UP 主文本。<span class="src src-m">我推断</span></p>
+
+<p>但本报告的<b>所有数字都不依赖转写</b>：榜单、成本、档位、分项得分均从 1080p 原片画面逐帧读出（抽帧核对），因此数字可靠性高于逐字稿。这一点与多数同版权威性判断相反，值得说明。</p>
+
+<h3>6.2 转写误转清单</h3>
+
+<div class="tw">
+<table>
+  <thead><tr><th style="width:22%">转写结果</th><th style="width:22%">实际应为</th><th>危害</th></tr></thead>
+  <tbody>
+    <tr><td>DeepSeek 哈密斯／Hardness／Harmony</td><td><b>DeepSeek Harness</b></td><td>同一产品名出现三种错法，其中「Harmony」会让人误以为是一个新模型，直接毁掉 4.4 那一节的论点</td></tr>
+    <tr><td>末期腾讯夫</td><td><b>莫欺腾讯富</b></td><td>原句是「三十年河东，三十年河西，莫欺腾讯富」，转写后语义完全丢失</td></tr>
+    <tr><td>机关算尽太聪明，反悟了青青性命</td><td>机关算尽太聪明，反误了卿卿性命</td><td>《红楼梦》原句，转写后不像引用</td></tr>
+    <tr><td>一箭轻松手段</td><td>（语义应为「都能轻松搞定」一类）</td><td>无法还原准确措辞，本报告未引用此句</td></tr>
+    <tr><td>视觉中的简单体</td><td>试题中的简单题</td><td>轻微，不影响理解</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h3>6.3 视频自身的不自洽</h3>
+
+<p>这一类比转写错误值钱，共三处：</p>
+
+<p><b>其一，满分对不上。</b>榜单标题写「Zhanbench 排行榜（满分 100 分）」，脚注写「办公题满分 73.5、代码题满分 23.5」。<b>73.5 + 23.5 = 97</b>。所有展示的分数（92.56、87.37……）都是 97 分制下的实得分，直接当成百分制会让读者高估整体水平约 3 分。<span class="src src-v">视频说</span> <a class="ts" href="https://www.bilibili.com/video/BV11fJX6GEcL/?t=65" target="_blank" rel="noopener">01:05</a></p>
+
+<p><b>其二，DeepSeek 那题的两个口径打架。</b>口播说「思考了整整 43 分钟，烧了 16 块钱」；同段落贴片上的烧字写「总用时为 115 分钟，总花费 20.8 元，等于此题占用了 40% 的总时间和 80% 的总成本」。<b>43 与 115、16 与 20.8 对不上</b>，最可能的解释是前者为单次运行、后者为多次重复合计——但片中没有说明。<b>这一处我没有核实到确切口径</b>，引用时应两个数都带上。<span class="src src-v">视频说</span> <a class="ts" href="https://www.bilibili.com/video/BV11fJX6GEcL/?t=176" target="_blank" rel="noopener">02:56</a></p>
+
+<p><b>其三，成本列的单位不统一。</b>网页能力排名表的「花费」列同屏出现四种单位：千问「46.8 积分」、WorkBuddy「13.0 积分」、Kimi「4.23% 月额度」、Codex「5 点 5 小时额度」、豆包「13.3 额度」、DeepSeek「¥1.12 按量」。随后统一折成「¥0.36 / ¥0.13 / ¥1.66 / ¥0.25 / ¥0.11 / ¥1.12」。<b>折算汇率没有公开</b>，而这一列正是「越贵越菜」这条主张的支点。<span class="src src-v">视频说</span> <a class="ts" href="https://www.bilibili.com/video/BV11fJX6GEcL/?t=397" target="_blank" rel="noopener">06:37</a></p>
+
+<h3>6.4 纠偏结论</h3>
+
+<p>可以放心引用的：各家的过关题数、办公／代码分项分、档位对照的成本倍数与分数变化、表格与网页的分项得分。<b>需要加限定的</b>：任何关于「贵」的结论——因为它是折算价，不是账单。<b>不能引用的</b>：「满分 100」。</p>
+
+<h2><span class="no">07</span><span>延伸发散<span class="sub">这份榜单能用到什么程度，以及它没说的那件事</span></span></h2>
+
+<h3>7.1 被总分榜埋掉的一个数：差距几乎全在「办公」，不在「代码」</h3>
+
+<p>把六家的两个分项摊开算跨度：<b>办公维度从 54.59 到 73.93，跨度 19.34 分；代码维度从 16.33 到 19.26，跨度只有 2.93 分。</b>换句话说，<b>六家的代码能力差不到 3 分，办公能力差 19 分——差了 6.6 倍</b>。<span class="src src-m">我推断</span></p>
+
+<figure>
+  <div class="bars">
+    <div class="bar"><span class="k">办公维度跨度</span><span class="track"><span class="fill fill-a" style="width:100%"></span></span><span class="v">19.34</span></div>
+    <div class="bar"><span class="k">代码维度跨度</span><span class="track"><span class="fill fill-b" style="width:15.2%"></span></span><span class="v">2.93</span></div>
+  </div>
+  <figcaption><b>怎么读</b>：条形长度＝该维度内最高分与最低分之差（满分分别为 73.5 与 23.5）。<b>口径</b>：取六家榜单原始分项分，未做归一化；两个维度的满分不同，所以看的是「差距占满分的比例」——办公 26.3%，代码 12.5%。</figcaption>
+</figure>
+
+<p>这个发现会改写标题：<b>不是「越贵的 AI 越菜」，而是「越贵的 AI 在办公场景里不一定更强，在写代码上大家本来就差不多」</b>。这也解释了为什么千问和 DeepSeek 的代码分（19.26、19.11）反而高过 Codex（18.63），总分却被办公分拖到第 5、第 6。</p>
+
+<h3>7.2 「每元得分」才是这份数据真正能用来做决策的指标</h3>
+
+<p>用视频自己的成本列算：WorkBuddy 90.07 分／元、千问 55.46、豆包 54.76、Codex 40.96、DeepSeek 3.54、Kimi 3.19。<b>头尾差 28 倍</b>。但请连着 6.3 一起读——分母是折算价，这个指标的精度不会高于分母。<span class="src src-m">我推断</span></p>
+
+<p>它真正有用的地方不在绝对值，在<b>排序的稳定性</b>：即使成本列有 ±50% 的误差，WorkBuddy、千问、豆包 / Codex 这一档与 Kimi、DeepSeek 那一档之间的断层也不会消失。断层来自计费模式，不来自测量误差。</p>
+
+<h3>7.3 Harness 才是这轮竞争的护城河，模型不是</h3>
+
+<p>把三条线索并起来看：评论区说「WorkBuddy 调用最多的是 DS」；WorkBuddy 排第 2、DeepSeek 自家排第 6；评论区反复说「dsh 是裸 runtime，靠插件生态」被「内置大量工程优化的成品」打败。<b>如果这些都成立，那么这次横评测出的最大变量不是模型，是外围工程。</b><span class="src src-c">评论说</span><span class="src src-m">我推断</span></p>
+
+<p>这个判断有个可检验的推论：<b>同一个模型，换一个 harness，分数应该有明显位移</b>。UP 主自己在片尾说要加「同 Agent 不同模型／同 AI 不同 Agent」的对照——那正是这个实验真正的下一步，也是这份榜单最该补的一格。</p>
+
+<h3>7.4 为什么「贵的一定更好」这个直觉会失效</h3>
+
+<p>不是因为贵的模型笨，而是因为<b>「贵」在这类产品里买到的东西，和「答对题」不是同一种东西</b>。高档位买到的是更长的思考链、更多的自我校验、更多的工具调用轮次。这些在「有唯一正确答案、且答案可被检索」的题上，收益递减得极快；在「开放、需要判断」的任务上才开始回本。而这份试卷 20 道题里，绝大多数是前者。<span class="src src-m">我推断</span></p>
+
+<p>所以正确读法是：<b>高档位不是没用，是它服务的是另一类任务</b>。拿这份卷子去否定高档位，等于拿短跑成绩否定举重选手。</p>
+
+<h3>7.5 还没解决的，和可以继续挖的</h3>
+
+<div class="details-wrap">
+<details>
+  <summary><span class="tag">4 项</span>这份报告没有解决的问题</summary>
+  <div class="body">
+    <p><b>一、成本口径。</b>各家的积分、额度、点数到底怎么折成元，片中没有公开，评论区也没有人能算出来。这一项不解决，「越贵越菜」就永远只是半个结论。</p>
+    <p><b>二、DeepSeek 那题的两个口径。</b>43 分钟／16 元 与 115 分钟／20.8 元 的关系没有核实到。可能是单次与合计，但没有证据。</p>
+    <p><b>三、Claude 的真实位置。</b>账号被封导致退赛，没有替代测试（例如换 API 通道）。这意味着榜单永远缺了最有争议的那一格。</p>
+    <p><b>四、「多次独立重复」到底几次。</b>方差没有公布，单次异常的权重无法评估——而 DeepSeek 那道题单次就跑了 43 分钟，恰好是最可能被单次异常放大的情形。</p>
+  </div>
+</details>
+</div>
+
+<p><b>要不要接到你自己身上。</b>如果你想用这份榜单做自己的选型，缺的从来不是这张表，而是三件事：<b>你的任务是哪一类</b>（表格／检索／网页，还是开放判断）、<b>你的计费方式是哪种</b>（按量还是订阅，差别可以到 20 倍）、<b>你能不能接受账号风险</b>。把这三件事说清楚，这份榜单就能被切成只属于你的那一列——那是另一次追问能做的事，不适合塞进一份要对外分享的报告里。</p>
+
+<footer>
+  <p><b>一句话最终建议。</b>把它当「档位溢价」的证据读，不要当「谁最强」的结论用——它最扎实的那一页是 WorkBuddy 快速与极致+MAX 的同屏对照，最不可靠的那一页是成本列。</p>
+  <p>生成于 2026-10-17 · 数据源：B站公开接口（视频元数据、150 条评论）+ 本机 faster-whisper 转写 + 1080p 原片抽帧核对 · 引文中括号内的 B站表情代码已剔除<br><b>本报告不含任何读者个人信息，可自由分享。</b></p>
+</footer>
+</div>
+</body>
+</html>
