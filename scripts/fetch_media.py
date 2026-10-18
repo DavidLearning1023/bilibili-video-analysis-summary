@@ -41,11 +41,12 @@ import fetch_video as fv  # noqa: E402  （复用 wbi_fetch / load_cookie / UA�
 
 UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
       "(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36")
-CHUNK = 256 * 1024               # 256 KB —— 子块越小，单次被截断的概率越低
-JOBS = 8                         # 并行连接数；CDN 按连接限速，加线程≈线性提速
+CHUNK = 1024 * 1024              # 1 MB —— 实测最优点：单连接 7 MB/s，8 并发 24 MB/s
+JOBS = 8                         # 并行连接数
 MIN_SEG = 2 * 1024 * 1024        # 每段至少 2 MB 才值得开一条连接
 SEG_MAX = 16 * 1024 * 1024       # 单段上限 16 MB，超出就多切几段
 MAX_STALL = 80                   # 连续多少次零进展就放弃该段（保留 part 可续传）
+SLOW_MBPS = 1.0                  # 单块速度低于此值即视为源不健康，连续 3 块换源
 REFERER = "https://www.bilibili.com/"   # main() 里改成具体视频页，缺了会被 567
 
 
@@ -84,11 +85,15 @@ def _headers(cookie, extra=None):
     return h
 
 
-def probe_size(url, cookie):
-    """Range: bytes=0-1023 → 读 Content-Range 的总长。这是块下载的前提。"""
+def probe_size(url, cookie, timeout=15):
+    """Range: bytes=0-1023 → 读 Content-Range 的总长。这是分段的前提。
+
+    超时给 15 s 而不是 60 s：多源探测时要给每个源都发一次，
+    备用源挂掉时不该把整次下载拖住一分钟。
+    """
     r = urllib.request.urlopen(
         urllib.request.Request(url, headers=_headers(cookie, {"Range": "bytes=0-1023"})),
-        timeout=60,
+        timeout=timeout,
     )
     cr = r.headers.get("Content-Range", "")
     r.close()
@@ -119,16 +124,26 @@ def _fetch_range(url, cookie, start, end, timeout=25):
 
 
 def _segment(urls, cookie, path, start, end, chunk, seg_i=0):
-    """下载 [start, end] 一段，边收边写。返回已写入字节数。"""
+    """下载 [start, end] 一段，边收边写。返回已写入字节数。
+
+    换源有两套触发条件，缺一不可：
+      - **卡住**（连续零字节）→ 每 20 次轮换一次源；
+      - **太慢**（单块速度低于 SLOW_MBPS）→ 连续 3 块就换源。
+    第二条是实测补的：某些源对某些字节区间没缓存（回源），速度只有 0.5 MB/s
+    却仍在推进，「卡住才换源」永远触发不了，于是一个慢段就能吃掉全程一半时间。
+    """
     cur = start
     if os.path.exists(path):
         cur = start + os.path.getsize(path)      # 续上次运行留下的 part
     f = open(path, "ab")
     stalls = 0
+    slow = 0
+    ui = seg_i                                    # 起始源按段号错开
     try:
         while cur <= end:
             sub_end = min(cur + chunk - 1, end)
-            url = urls[(seg_i + stalls // 20) % len(urls)]   # 各段起点即分散；连续卡住就换源
+            url = urls[ui % len(urls)]
+            t_req = time.time()
             blob, err = _fetch_range(url, cookie, cur, sub_end)
             if blob:
                 blob = blob[: sub_end - cur + 1]      # 防御：万一返回超量
@@ -136,9 +151,19 @@ def _segment(urls, cookie, path, start, end, chunk, seg_i=0):
                 f.flush()
                 cur += len(blob)
                 stalls = 0
+                dt = max(time.time() - t_req, 0.001)
+                if dt > (len(blob) / 1048576) / SLOW_MBPS:
+                    slow += 1
+                    if slow >= 3 and len(urls) > 1:
+                        ui += 1                        # 换个源从当前位置继续
+                        slow = 0
+                else:
+                    slow = 0
             else:
                 stalls += 1
                 time.sleep(min(0.05 * stalls, 1.0))
+                if stalls % 20 == 0 and len(urls) > 1:
+                    ui += 1
                 if stalls > MAX_STALL:
                     break
     finally:
@@ -146,7 +171,7 @@ def _segment(urls, cookie, path, start, end, chunk, seg_i=0):
     return cur - start
 
 
-def download(urls, cookie, out_path, jobs=JOBS, chunk=CHUNK):
+def download(urls, cookie, out_path, jobs=JOBS, chunk=CHUNK, force=False):
     """多线程分段下载，返回 (total, 耗时秒, 主机)。
 
     为什么不是「4 MB 块顺序下」：CDN 按**连接**限速（实测 ~20 KB/s），
@@ -158,18 +183,32 @@ def download(urls, cookie, out_path, jobs=JOBS, chunk=CHUNK):
     所以中途失败不会留下半截坏文件。
     """
     total, host, last = None, urls[0].split("/")[2], None
+    # 所有源都探一遍：baseUrl 与 backupUrl 指向不同码流时长度会不同，
+    # 混着下会拼出一个「长度对、内容错位」的文件，而且事后查不出来。
+    # 只保留长度与第一个成功源一致的那些，其余剔除。
+    good = []
     for u in urls:
         try:
-            total = probe_size(u, cookie)
-            host = u.split("/")[2]
-            break
+            t = probe_size(u, cookie)
         except Exception as e:  # noqa: BLE001
             last = e
+            continue
+        if total is None:
+            total = t
+        if t == total:
+            good.append(u)
     if total is None:
         raise RuntimeError(f"所有源都探测不到总长：{last}")
     if total <= 0:
         raise RuntimeError(f"探测到的总长异常：{total}")
+    if len(good) < len(urls):
+        print(f"[WARN] {len(urls) - len(good)} 个源总长与主源不一致，已剔除",
+              file=sys.stderr, flush=True)
+    urls = good
+    host = urls[0].split("/")[2]
 
+    if force and os.path.exists(out_path):
+        os.remove(out_path)
     have = os.path.getsize(out_path) if os.path.exists(out_path) else 0
     if have > total:
         os.remove(out_path)
@@ -217,13 +256,24 @@ def download(urls, cookie, out_path, jobs=JOBS, chunk=CHUNK):
         raise RuntimeError(
             f"分段不完整 {len(bad)}/{len(plan)}（保留 part 文件，重跑即续传）：{bad[:3]}")
 
-    with open(out_path, "ab") as out:
-        for i, _a, _b in plan:
+    # 合并必须原子。直接 append 到 out_path 的话，合并中途被杀会留下
+    # 「长度不足、但下一次会被当成可信前缀」的主文件——拼出来的东西长度对、
+    # 内容全错，而且没有任何一步能发现。所以写临时文件再 os.replace。
+    merge_tmp = out_path + ".merging"
+    if os.path.exists(merge_tmp):
+        os.remove(merge_tmp)
+    with open(merge_tmp, "wb") as out:
+        if have:                                   # 先复刻已有前缀，原文件保持不动
+            with open(out_path, "rb") as f:
+                shutil.copyfileobj(f, out, 4 * 1024 * 1024)
+        for i, _a, _b in plan:                      # plan 按 i 升序 = 字节序
             with open(parts[i], "rb") as f:
                 shutil.copyfileobj(f, out, 4 * 1024 * 1024)
-    got = os.path.getsize(out_path)
+    got = os.path.getsize(merge_tmp)
     if got != total:
-        raise RuntimeError(f"合并后字节数不符：{got} != {total}")
+        os.remove(merge_tmp)
+        raise RuntimeError(f"合并后字节数不符：{got} != {total}（part 已保留，重跑可复用）")
+    os.replace(merge_tmp, out_path)                 # 同分区原子替换：主文件不会停在半成品
     for p in parts:
         os.remove(p)
     return total, round(time.time() - t0, 1), host
@@ -260,7 +310,11 @@ def main():
     ap.add_argument("--jobs", type=int, default=JOBS,
                     help=f"并行连接数，默认 {JOBS}；网络差时加到 16")
     ap.add_argument("--chunk", type=int, default=CHUNK // 1024,
-                    help=f"子块大小（KB），默认 {CHUNK//1024}；截断严重时降到 128")
+                    help=f"子块大小（KB），默认 {CHUNK//1024}。"
+                         "子块太小会被 HTTP 往返开销拖死（256 KB 单连接只有 1 MB 的 1/3 速度）；"
+                         "网络频繁截断时降到 256 影响也不大，因为 partial 会逐段推进")
+    ap.add_argument("--force", action="store_true",
+                    help="忽略已存在的同名文件，从头下载（怀疑旧文件损坏时用）")
     args = ap.parse_args()
 
     global REFERER
@@ -295,7 +349,8 @@ def main():
     for name, stream, path in jobs:
         urls = [stream["baseUrl"]] + list(stream.get("backupUrl") or [])
         total, secs, host = download(urls, cookie, path,
-                                     jobs=args.jobs, chunk=args.chunk * 1024)
+                                     jobs=args.jobs, chunk=args.chunk * 1024,
+                                     force=args.force)
         mbs = total / 1048576 / max(secs, 0.1)
         print(f"[OK] {name:10s} {v_codec(stream):12s} "
               f"{total/1048576:6.1f} MB  {secs:4.1f}s  {mbs:5.1f} MB/s  "

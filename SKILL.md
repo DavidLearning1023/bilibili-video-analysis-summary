@@ -80,26 +80,28 @@ python scripts/fetch_video.py BV1r2ey6EEh5 --page 4            # 指定分P
 python scripts/fetch_video.py BV1r2ey6EEh5 --sort time --comments 80
 ```
 
-**要音频/画面时，别现场拼 urllib ——用 `scripts/fetch_media.py`。** 它已经把 B站 CDN 的四道坎封在内部（缺 Referer → 567；大文件单次请求被静默截断；截断的 m4s 仍能被 ffprobe 读出时长，到解码才报错；**单连接被限速到 ~20 KB/s 且 Range 响应频繁提前断开**），一次调用完成「Range 探长 → 多线程分段 → partial 逐段推进 → 字节数校验」：
+**要音频/画面时，别现场拼 urllib ——用 `scripts/fetch_media.py`。** 它已经把 B站 CDN 的四道坎封在内部（缺 Referer → 567；大文件单次请求被静默截断；截断的 m4s 仍能被 ffprobe 读出时长，到解码才报错；**并发数决定吞吐**），一次调用完成「Range 探长 → 多源取一致长度 → 多线程分段 → partial 逐段推进 → 原子合并 → 字节数校验」：
 
 ```bash
 python scripts/fetch_media.py BV11fJX6GEcL --audio                 # 音轨，转写用（实测 11 MB / 3.3s）
-python scripts/fetch_media.py BV11fJX6GEcL --video 1080            # 要读表格数字必须 ≥1080（46 MB 几分钟；161 MB 约 3–7 分钟）
-python scripts/fetch_media.py BV11fJX6GEcL --video 1080 --jobs 16  # 网络差时加并发（按连接限速，加线程≈线性提速）
-python scripts/fetch_media.py BV11fJX6GEcL --audio --video 1080 --out ./media
+python scripts/fetch_media.py BV11fJX6GEcL --video 1080            # 要读表格数字必须 ≥1080（161 MB / 11s）
+python scripts/fetch_media.py BV11fJX6GEcL --video 1080 --jobs 16  # 并发；正常网络 8 路已接近带宽上限
+python scripts/fetch_media.py BV11fJX6GEcL --video 1080 --force    # 怀疑旧文件坏了，忽略已有文件重下
 ```
 
-**三段硬经验（2026-10-18 实测，一次 169 MB 视频卡了 28 分钟才总结出来）：**
+**四段硬经验（2026-10-18 两次实测，一次 28 分钟、一次 11 秒）：**
 
 | 现象 | 病因 | 怎么做 |
 |---|---|---|
-| 下载脚本跑几分钟没动静、最后被信号杀掉，文件停在 **4 MB 的整数倍** | 旧版用 4 MB 块 + 整块重试，而 CDN 每次只给 100–600 KB 就断；一次 `IncompleteRead` 就废掉整块 | 已改为 **256 KB 子块 + `IncompleteRead.partial` 逐段推进**（不丢弃已读字节），默认 8 路并行 |
+| 下载脚本跑几分钟没动静、最后被信号杀掉，文件停在 **4 MB 的整数倍** | 旧版用 4 MB 块 + 整块重试，一次 `IncompleteRead` 就废掉整块，且失败时 `os.remove` 把进度删掉从头再来 | 已改为 **1 MB 子块 + `IncompleteRead.partial` 逐段推进**（不丢弃已读字节），默认 8 路并行 |
 | **ffprobe 报得出时长、size 看着也合理，ffmpeg 却报 `partial file` / `Invalid NAL unit size`** | `duration` 来自 moov，与截断无关；`bit_rate` 是拿这个 size **反算**的，永远自洽 | **判完整性只认 `probe_size` 的 Content-Range 总长**，不要用 ffprobe 的任何输出当依据 |
-| 同一脚本连试两三次都卡在同一位置 | 换的只是启动方式，没换机制 | **单连接失败两次就换并发/换源，不要第三次重跑同一个脚本**。`--jobs 16` 通常能绕过 |
+| 总时间被个别段拖垮：8 段里 6 段 3.4 MB/s，2 段 0.46 MB/s | 备用源对某些字节区间没缓存（回源），**却仍在推进**，「卡住才换源」永远触发不了 | 已加**低速换源**：单块速度 < 1 MB/s 连续 3 块就换源，从当前位置继续。这一条把 161 MB 从 71 s 压到 11 s |
+| 整体慢到 20 KB/s 量级 | **多半是你自己的网络**（代理 / 游戏加速器 / 公司网关），不是 CDN。实测同一视频同一命令：加速器开着 0.044 MB/s，关掉 14.5 MB/s | 先关代理/加速器再试；`--jobs 16` 能缓解但救不回来 |
+| 同一命令失败两次后想第三次重跑 | 换的只是启动方式，机制没变 | **两次就换机制**：并发数、子块大小、下载源，三者至少换一个。别指望「再跑一遍会好」 |
 
 > ⚠️ **不要用 yt-dlp 下 B站**：即使带 `--cookies` 也会 567，重试 10 次后失败，纯烧时间。这条已经踩过两次。
 >
-> ⚠️ **后台跑长任务时不要把 stdout 管道给 `tail`/`head`**：它们要等 EOF 才输出，`tail -30` 会让整个后台任务在外层完全静默，你只能靠 `ls` 猜进度。要精简输出就让脚本自己控制（`fetch_media.py` 的进度走 stderr 且逐行 flush）。
+> ⚠️ **后台跑长任务时不要把 stdout 管道给 `tail`/`head`**：它们要等 EOF 才输出，`tail -30` 会让整个后台任务在外层完全静默，你只能靠 `ls` 猜进度。要精简输出就让脚本自己控制（`fetch_media.py` 的进度走 stderr 且逐行 flush）。**注意这只影响可观测性，不影响成败**——别把它当成下载失败的原因。
 
 凭据来源（**仅取字幕需要**；元数据与评论无需登录）：`--cookie-file` > 环境变量 `BILI_SESSDATA` > 自动读取 `~/.bilibili-mcp/config.json`。
 
@@ -418,7 +420,7 @@ python scripts/check_pdf.py report.pdf --images 2
 | 元数据 + 评论取数 | 10–20 s | 反复 print 全量评论 |
 | 音轨下载 + 转写 | 30–40 s | 出现 567 / 截断 / 重试 |
 | 视频 1080p 下载，≤ 50 MB | 3–8 s | 下了 360p 又发现看不清 |
-| 视频 1080p 下载，100–170 MB | **3–7 min**（8 路并发，0.4–0.9 MB/s） | 期待它「几十秒下完」；或单连接跑——单连接只有 ~20 KB/s，169 MB 要 1 小时 |
+| 视频 1080p 下载，100–170 MB | **8–20 s**（8 路并发，10–20 MB/s） | 超过 1 分钟先怀疑自己的代理/加速器，再怀疑 CDN |
 | 抽帧 + 联系表 | 15–20 s | 出图数 > 25 张 |
 | PDF 渲染 | 7–10 s | style 块 > 1 |
 | PDF 自检 | 5 s + 读 2–3 张图 | 读超过 5 张整页图 |
