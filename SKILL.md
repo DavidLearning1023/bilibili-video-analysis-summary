@@ -80,15 +80,26 @@ python scripts/fetch_video.py BV1r2ey6EEh5 --page 4            # 指定分P
 python scripts/fetch_video.py BV1r2ey6EEh5 --sort time --comments 80
 ```
 
-**要音频/画面时，别现场拼 urllib ——用 `scripts/fetch_media.py`。** 它已经把 B站 CDN 的三道坎封在内部（缺 Referer → 567；大文件单次请求被静默截断；截断的 m4s 仍能被 ffprobe 读出时长，到解码才报错），一次调用完成「Range 探长 → 4 MB 分块 → 字节数校验」：
+**要音频/画面时，别现场拼 urllib ——用 `scripts/fetch_media.py`。** 它已经把 B站 CDN 的四道坎封在内部（缺 Referer → 567；大文件单次请求被静默截断；截断的 m4s 仍能被 ffprobe 读出时长，到解码才报错；**单连接被限速到 ~20 KB/s 且 Range 响应频繁提前断开**），一次调用完成「Range 探长 → 多线程分段 → partial 逐段推进 → 字节数校验」：
 
 ```bash
-python scripts/fetch_media.py BV11fJX6GEcL --audio                 # 音轨，转写用（实测 12 MB / 0.6s）
-python scripts/fetch_media.py BV11fJX6GEcL --video 1080            # 要读表格数字必须 ≥1080（实测 46 MB / 3.1s）
+python scripts/fetch_media.py BV11fJX6GEcL --audio                 # 音轨，转写用（实测 11 MB / 3.3s）
+python scripts/fetch_media.py BV11fJX6GEcL --video 1080            # 要读表格数字必须 ≥1080（46 MB 几分钟；161 MB 约 3–7 分钟）
+python scripts/fetch_media.py BV11fJX6GEcL --video 1080 --jobs 16  # 网络差时加并发（按连接限速，加线程≈线性提速）
 python scripts/fetch_media.py BV11fJX6GEcL --audio --video 1080 --out ./media
 ```
 
+**三段硬经验（2026-10-18 实测，一次 169 MB 视频卡了 28 分钟才总结出来）：**
+
+| 现象 | 病因 | 怎么做 |
+|---|---|---|
+| 下载脚本跑几分钟没动静、最后被信号杀掉，文件停在 **4 MB 的整数倍** | 旧版用 4 MB 块 + 整块重试，而 CDN 每次只给 100–600 KB 就断；一次 `IncompleteRead` 就废掉整块 | 已改为 **256 KB 子块 + `IncompleteRead.partial` 逐段推进**（不丢弃已读字节），默认 8 路并行 |
+| **ffprobe 报得出时长、size 看着也合理，ffmpeg 却报 `partial file` / `Invalid NAL unit size`** | `duration` 来自 moov，与截断无关；`bit_rate` 是拿这个 size **反算**的，永远自洽 | **判完整性只认 `probe_size` 的 Content-Range 总长**，不要用 ffprobe 的任何输出当依据 |
+| 同一脚本连试两三次都卡在同一位置 | 换的只是启动方式，没换机制 | **单连接失败两次就换并发/换源，不要第三次重跑同一个脚本**。`--jobs 16` 通常能绕过 |
+
 > ⚠️ **不要用 yt-dlp 下 B站**：即使带 `--cookies` 也会 567，重试 10 次后失败，纯烧时间。这条已经踩过两次。
+>
+> ⚠️ **后台跑长任务时不要把 stdout 管道给 `tail`/`head`**：它们要等 EOF 才输出，`tail -30` 会让整个后台任务在外层完全静默，你只能靠 `ls` 猜进度。要精简输出就让脚本自己控制（`fetch_media.py` 的进度走 stderr 且逐行 flush）。
 
 凭据来源（**仅取字幕需要**；元数据与评论无需登录）：`--cookie-file` > 环境变量 `BILI_SESSDATA` > 自动读取 `~/.bilibili-mcp/config.json`。
 
@@ -398,13 +409,16 @@ python scripts/check_pdf.py report.pdf --images 2
 
 **⑤ 版式实验先量后改。** 「把定性卡砍一格能不能不跨页」这类问题，渲染 + 读图猜一轮要两分钟且常常猜错（实测改完更差又改回来）。要么用 `check_pdf.py` 的数字判断，要么接受自然的跨页——**定性卡跨页不算缺陷，为它试错才是**。
 
+> 唯一值得提前规避的是**可算的那一种**：定性卡超过 **6 格**（3 行 × 2 列）必跨页，`vcell-full` 还会再占一行。所以先数格子再写，超过 6 个就合并字段（例：「能解决什么问题」与「成熟度」合成一格），而不是渲染完再改。
+
 ### 效率基线（用来判断自己是不是又绕路了）
 
 | 步骤 | 应花时间 | 超出就要怀疑 |
 |---|---|---|
 | 元数据 + 评论取数 | 10–20 s | 反复 print 全量评论 |
 | 音轨下载 + 转写 | 30–40 s | 出现 567 / 截断 / 重试 |
-| 视频 1080p 下载 | 3–5 s | 下了 360p 又发现看不清 |
+| 视频 1080p 下载，≤ 50 MB | 3–8 s | 下了 360p 又发现看不清 |
+| 视频 1080p 下载，100–170 MB | **3–7 min**（8 路并发，0.4–0.9 MB/s） | 期待它「几十秒下完」；或单连接跑——单连接只有 ~20 KB/s，169 MB 要 1 小时 |
 | 抽帧 + 联系表 | 15–20 s | 出图数 > 25 张 |
 | PDF 渲染 | 7–10 s | style 块 > 1 |
 | PDF 自检 | 5 s + 读 2–3 张图 | 读超过 5 张整页图 |
@@ -504,7 +518,7 @@ print(pg.evaluate("() => getComputedStyle(document.querySelector('.verdict')).gr
 | `references/CHANGELOG.md` | **变更历史**：每次改动的原因与验证方式 |
 | `scripts/check_setup.py` | 前置条件自检（诊断入口） |
 | `scripts/fetch_video.py` | 自包含取数脚本（元数据 / 字幕 / 评论） |
-| `scripts/fetch_media.py` | **音视频流下载**（Range 探长 + 4MB 分块 + 字节校验；绕开 567 与截断） |
+| `scripts/fetch_media.py` | **音视频流下载**（Range 探长 + 多线程分段 + `IncompleteRead.partial` 续传 + 字节校验；绕开 567、截断与单连接限速） |
 | `scripts/grab_frames.py` | **抽帧**（镜头检测 / 转写锚点 / 定点 / 字幕条）+ 联系表 + 索引表 |
 | `scripts/check_pdf.py` | **PDF 版式自检**（每页字数 / 内容底线 / 链接 / 漏印的收起）+ 只导出可疑页 |
 | `scripts/render_report.py` | **组装单文件 HTML + 渲染 PDF**（正文片段 + 模板 → 交付物） |

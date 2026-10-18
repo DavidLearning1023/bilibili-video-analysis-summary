@@ -189,6 +189,10 @@ footer{margin-top:88px; padding-top:28px; border-top:2px solid var(--ink);
 
   /* 标题不许落在页尾；块级不许被切断；长表格按行分页并重复表头 */
   h1,h2,h3,h4,summary{break-after:avoid; page-break-after:avoid}
+  /* h2 内含 .no（block）+ 标题 + .sub，若允许在内部断页，Chrome 会把
+     border-top／padding／.no 留在上一页并被裁掉（PDF 丢失 01–07 序号）。
+     整块不可断，即可让序号与标题一起落到新页。 */
+  h2{break-inside:avoid; page-break-inside:avoid}
   figure,.pull,.caveat,.bars,.sm,.vcell,details,blockquote,figcaption{
     break-inside:avoid; page-break-inside:avoid}
   /* 高个子图表允许跨页，否则会把整页顶空 */
