@@ -174,9 +174,13 @@ def _segment(urls, cookie, path, start, end, chunk, seg_i=0):
 def download(urls, cookie, out_path, jobs=JOBS, chunk=CHUNK, force=False):
     """多线程分段下载，返回 (total, 耗时秒, 主机)。
 
-    为什么不是「4 MB 块顺序下」：CDN 按**连接**限速（实测 ~20 KB/s），
-    顺序下载 169 MB 要一小时。切成 N 段并行，每段内部用 256 KB 子块 +
-    partial 推进，同一文件 2 分钟到手。
+    为什么不是「4 MB 块顺序下」：慢的主因是**单连接被限速 / 本机代理或加速器**，
+    顺序下载 169 MB 实测要 40 分钟以上（开游戏加速器时只有 0.044 MB/s）。
+    切成 N 段并行、每段内部用 1 MB 子块 + partial 推进，同一文件 11 秒到手。
+
+    ⚠️ 别把慢归给"CDN 按连接限速"——2026-10-18 实测：同一条命令关掉本机加速器后
+    单连接就有 15.78 MB/s（差 330 倍）。慢的时候先查本地网络，再查 CDN。
+    详见 references/lessons.md「更正上一条：慢不是 CDN 的错」。
 
     断点续传：out_path 已存在的部分视为可信前缀，只补剩余区间。
     分段中间态写在 `.<name>.part{i}`，校验通过后才合并——**合并前主文件不变**，
