@@ -89,7 +89,10 @@ def _clean(m):
 def load_comments(bvid, args):
     """优先复用已有 JSON；否则走 fetch_video.py 的取数函数。"""
     if args.json:
-        d = json.load(open(args.json, encoding="utf-8"))
+        p = pathlib.Path(args.json)
+        if not p.exists():
+            raise FileNotFoundError(f"--json 指向的文件不存在：{p}")
+        d = json.load(open(p, encoding="utf-8"))
         return d.get("comments") or [], d.get("comments_meta") or {}, d.get("info") or {}
     import fetch_video as fv
     # 兼容不同版本的 get_comments 签名
@@ -114,7 +117,7 @@ def decide(meta):
     return "skip", 0
 
 
-def download_one(item, outdir):
+def download_one(item, outdir, max_bytes=15 * 1024 * 1024):
     url = item["url"]
     ext = os.path.splitext(urllib.parse.urlparse(url).path)[1].lower() or ".jpg"
     if ext not in (".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp"):
@@ -126,7 +129,13 @@ def download_one(item, outdir):
         try:
             req = urllib.request.Request(url, headers={"User-Agent": UA, "Referer": REFERER})
             with urllib.request.urlopen(req, timeout=30) as r:
-                data = r.read()
+                # 体积上限：评论里偶有几十 MB 的动图/长截图，一口气读进内存会把并发打爆。
+                # 超限直接放弃（联系表里会显示「未下载」，不影响其余帧）。
+                data = r.read(max_bytes + 1)
+            if len(data) > max_bytes:
+                print(f"  [WARN] #{item['rank']:02d} 超过 {max_bytes // 1024 // 1024} MB，跳过",
+                      file=sys.stderr)
+                return item, None
             if data:
                 fn.write_bytes(data)
                 return item, fn
@@ -199,8 +208,9 @@ def build_sheets(items, outdir, cols, cell, per_sheet):
 
 def main():
     ap = argparse.ArgumentParser(description="评论区图片：阈值决策 + 下载 + 联系表")
-    ap.add_argument("video", help="BV 号或完整 URL")
-    ap.add_argument("--comments", type=int, default=100, help="顶层评论条数，默认 100")
+    ap.add_argument("video", nargs="?", help="BV 号或完整 URL；给了 --json 时可省略（从 JSON 里读）")
+    ap.add_argument("--comments", type=int, default=100,
+                    help="顶层评论条数，默认 100（给了 --json 时本参数无效，以 JSON 里的样本为准）")
     ap.add_argument("--json", help="复用 fetch_video.py 产出的 JSON，避免重复请求")
     ap.add_argument("--top", type=int, default=0, help="下载几张（0=按阈值自动：must 20 / sample 10）")
     ap.add_argument("--cols", type=int, default=5, help="联系表列数，默认 5")
@@ -211,12 +221,26 @@ def main():
     ap.add_argument("--dry-run", action="store_true", help="只输出决策，不下载")
     args = ap.parse_args()
 
-    bvid = args.video.strip().split("/")[-1] if "bilibili.com" in args.video else args.video
-    if "BV" not in bvid:
-        m = re.search(r"BV[0-9A-Za-z]{10}", args.video)
-        bvid = m.group(0) if m else bvid
+    if not args.video and not args.json:
+        print("[FAIL] 至少要给 `video`（BV号/URL）或 `--json`（已有取数结果）之一", file=sys.stderr)
+        return 2
 
-    cmts, meta, info = load_comments(bvid, args)
+    bvid = None
+    if args.video:
+        try:
+            import fetch_video as fv0
+            bvid = fv0.parse_bvid(args.video)
+        except Exception as e:
+            print(f"[FAIL] {e}", file=sys.stderr)
+            return 2
+
+    try:
+        cmts, meta, info = load_comments(bvid, args)
+    except FileNotFoundError as e:
+        print(f"[FAIL] {e}", file=sys.stderr)
+        return 2
+    # 只给 --json 时，BV 号从 JSON 的 info 里取——不必让用户再输一次
+    bvid = bvid or info.get("bvid") or "unknown"
     if not cmts:
         print("[FAIL] 没取到评论", file=sys.stderr)
         return 2

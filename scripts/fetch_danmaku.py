@@ -65,16 +65,21 @@ UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
 
 
 def _bvid_of(s):
-    if "bilibili.com" in s:
+    """复用 fetch_video.parse_bvid，支持裸 BV / 完整 URL / b23.tv 短链。"""
+    try:
+        import fetch_video as fv
+        return fv.parse_bvid(s)
+    except Exception:
         m = re.search(r"BV[0-9A-Za-z]{10}", s)
-        if m:
-            return m.group(0)
-    return s.strip()
+        return m.group(0) if m else s.strip()
 
 
 def load_meta(bvid, args):
     if args.json:
-        d = json.load(open(args.json, encoding="utf-8"))
+        p = pathlib.Path(args.json)
+        if not p.exists():
+            raise FileNotFoundError(f"--json 指向的文件不存在：{p}")
+        d = json.load(open(p, encoding="utf-8"))
         return d.get("info") or {}
     import fetch_video as fv
     cookie = fv.load_cookie(args) if hasattr(fv, "load_cookie") else None
@@ -151,7 +156,7 @@ def bar(n, mx, width=40):
 
 def main():
     ap = argparse.ArgumentParser(description="弹幕分析：密度曲线 / 高重复句 / UP主弹幕")
-    ap.add_argument("video", help="BV 号或 URL")
+    ap.add_argument("video", nargs="?", help="BV 号或 URL；给了 --json 时可省略（从 JSON 里读）")
     ap.add_argument("--json", help="复用 fetch_video.py 的 JSON（含 cid 与 author_mid）")
     ap.add_argument("--top", type=int, default=5, help="输出最密的几个分钟段，默认 5")
     ap.add_argument("--min-repeat", type=int, default=3, help="高重复句阈值，默认 3")
@@ -162,8 +167,17 @@ def main():
     ap.add_argument("--cookie-file", help="凭据 JSON（仅取元数据时需要）")
     args = ap.parse_args()
 
-    bvid = _bvid_of(args.video)
-    info = load_meta(bvid, args)
+    if not args.video and not args.json:
+        print("[FAIL] 至少要给 `video`（BV号/URL）或 `--json`（已有取数结果）之一", file=sys.stderr)
+        return 2
+
+    bvid = _bvid_of(args.video) if args.video else None
+    try:
+        info = load_meta(bvid, args)
+    except FileNotFoundError as e:
+        print(f"[FAIL] {e}", file=sys.stderr)
+        return 2
+    bvid = bvid or info.get("bvid") or "unknown"
     cid = None
     pages = info.get("pages") or []
     if pages:
@@ -174,14 +188,20 @@ def main():
 
     if args.xml:
         raw = pathlib.Path(args.xml).read_bytes()
-        if raw[:2] == b"\x1f\x8b" or raw[:1] != b"<":
+        # 三种可能：明文 XML / raw deflate / gzip。少判一种就抛 ParseError，
+        # 而报错位置（ET.fromstring）离病因很远。
+        if raw[:1] != b"<":
             import zlib as _z
-            for wbits in (-_z.MAX_WBITS, _z.MAX_WBITS):
-                try:
-                    raw = _z.decompress(raw, wbits)
-                    break
-                except Exception:
-                    continue
+            if raw[:2] == b"\x1f\x8b":
+                import gzip
+                raw = gzip.decompress(raw)
+            else:
+                for wbits in (-_z.MAX_WBITS, _z.MAX_WBITS):
+                    try:
+                        raw = _z.decompress(raw, wbits)
+                        break
+                    except Exception:
+                        continue
     else:
         try:
             raw = fetch_xml(cid, bvid)
@@ -218,18 +238,22 @@ def main():
         print(f"[OK] 评论/弹幕 = {ratio:.2f}:1"
               f"（受题材、时长、UP 主弹幕设置共同影响，不要单独归因）")
 
-    # ① 密度曲线（按分钟）
-    buckets = Counter(int(d["t"] // 60) for d in ds)
+    # ① 密度曲线。粒度随片长自适应：≤40 分钟按分钟，>40 分钟按 5 分钟。
+    # 不这么切的话，一小时的视频会打出 60+ 行纯数字，白占上下文（这是成本，不是信息）。
+    gran = 60 if (dur or 0) <= 40 * 60 else 300
+    unit = "每分钟" if gran == 60 else "每 5 分钟"
+    buckets = Counter(int(d["t"] // gran) for d in ds)
     mx = max(buckets.values()) if buckets else 0
-    print("\n--- 弹幕密度（每分钟）---")
+    print(f"\n--- 弹幕密度（{unit}）---")
     for m in range(max(buckets) + 1):
         n = buckets.get(m, 0)
-        print(f"  {m:02d}  {n:>4}  {bar(n, mx)}")
+        label = f"{m:02d}" if gran == 60 else fmt_t(m * gran)
+        print(f"  {label:>6}  {n:>4}  {bar(n, mx)}")
 
-    # ② 最密的分钟段 + 样本
-    print(f"\n--- 最密集的 {args.top} 个分钟段 ---")
+    # ② 最密的时段 + 样本（时段长度与上面的粒度一致）
+    print(f"\n--- 最密集的 {args.top} 个时段 ---")
     for m, n in buckets.most_common(args.top):
-        lo, hi = m * 60, m * 60 + 60
+        lo, hi = m * gran, m * gran + gran
         seg = [d for d in ds if lo <= d["t"] < hi]
         seg.sort(key=lambda x: x["t"])
         span = f"{fmt_t(lo)}–{fmt_t(min(hi, dur or hi))}"

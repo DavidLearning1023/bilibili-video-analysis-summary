@@ -114,10 +114,27 @@ def wbi_fetch(path, params, cookie=None):
 
 
 def parse_bvid(raw):
+    """从各种输入里取 BV 号：裸 BV 号 / 完整 URL / **b23.tv 短链**。
+
+    ⚠️ 短链需要跟随一次重定向才能拿到 BV 号。SKILL 的触发边界写着支持 b23.tv，
+    但早期实现只做正则匹配，短链会直接失败——文档承诺了、代码没做，属于必须补的洞。
+    注意：这段**只用构造的短链格式做了逻辑核对，没有真实 b23.tv 样本跑过**，
+    首次遇到短链时请确认 `r.geturl()` 是否已跳转到 `/video/BV...`。
+    """
     m = re.search(r"(BV[0-9A-Za-z]{10})", raw)
-    if not m:
-        raise ValueError(f"无法从输入中解析 BV 号：{raw}")
-    return m.group(1)
+    if m:
+        return m.group(1)
+    if re.search(r"https?://(b23\.tv|bili2233\.cn)/", raw):
+        try:
+            req = urllib.request.Request(raw, headers={"User-Agent": UA})
+            with urllib.request.urlopen(req, timeout=15) as r:
+                final = r.geturl()
+            m = re.search(r"(BV[0-9A-Za-z]{10})", final)
+            if m:
+                return m.group(1)
+        except Exception as e:
+            raise ValueError(f"短链解析失败（{e}）：{raw}；请改用完整 URL 或裸 BV 号")
+    raise ValueError(f"无法从输入中解析 BV 号：{raw}")
 
 
 def load_cookie(args):
@@ -165,14 +182,15 @@ def get_info(bvid, cookie=None):
         "aid": v.get("aid"),
         "title": v.get("title"),
         "author": owner.get("name"),
-        # mid 是识别"UP 主本人发的弹幕/评论"的唯一依据（弹幕 XML 第 7 位 = crc32(uid)）。
-        # 少了它，fetch_danmaku.py 的 UP 主识别整条链就断了。
+        # mid 是 UP 主的唯一数字身份。注意：**它不能用来反查弹幕发送者**——
+        # 网上传的「弹幕 p[6] = crc32(mid)」已实测否证（见 troubleshooting §6.7 ④）。
+        # 保留它是因为后续若要按 mid 匹配评论区作者（comment.member.mid）仍然需要。
         "author_mid": owner.get("mid"),
         "duration": v.get("duration"),
         "pubdate": v.get("pubdate"),
         "desc": v.get("desc"),
         "pic": v.get("pic"),
-        "tname": v.get("tname") or v.get("tname_v2"),
+        "tname": v.get("tname") or v.get("tname_v2") or None,
         "stats": v.get("stat"),
         "pages": [{"page": p.get("page"), "cid": p.get("cid"), "title": p.get("part"),
                    "duration": p.get("duration")} for p in (v.get("pages") or [])],
@@ -181,16 +199,35 @@ def get_info(bvid, cookie=None):
 
 
 def _get_tags(bvid, cookie=None):
-    """视频标签（分区之外的第二层分类）。取不到就返回 []，不让它拖垮主流程。"""
-    for path in ("/x/web-interface/view/detail", "/x/tag/archive/tags"):
+    """视频标签（分区之外的第二层分类）。取不到就返回 []，不让它拖垮主流程。
+
+    ⚠️ 2026-10-19 实测的顺序问题：
+      * `/x/tag/archive/tags` → 200 / **2 KB** / data 是 **list**（不是 dict）
+      * `/x/web-interface/view/detail` → **412**（需要更严的签名，当前环境必失败）
+    所以必须**轻接口优先、detail 只作兜底**。之前反着写，每次取数都白打一次 412：
+    既慢，又平白增加一次风控暴露。
+    另：data 是 list 时用 `.get()` 会抛 AttributeError，会被 except 吞掉变成静默返回 []——
+    这类"异常被吞"最难查，所以这里显式判类型。
+    """
+    for path in ("/x/tag/archive/tags", "/x/web-interface/view/detail"):
         try:
             st, d, _ = _fetch(path, {"bvid": bvid}, cookie)
             if st != 200 or not d or d.get("code") != 0:
                 continue
-            data = d.get("data") or {}
-            tags = data.get("Tags") or data.get("tags") or []
-            out = [t.get("tag_name") or t.get("name") for t in tags if isinstance(t, dict)]
-            out = [t for t in out if t]
+            data = d.get("data")
+            if isinstance(data, list):
+                tags = data
+            elif isinstance(data, dict):
+                tags = data.get("Tags") or data.get("tags") or []
+            else:
+                continue
+            out = []
+            for t in tags:
+                if not isinstance(t, dict):
+                    continue
+                name = t.get("tag_name") or t.get("name")
+                if name:
+                    out.append(name)
             if out:
                 return out
         except Exception:
@@ -261,7 +298,9 @@ def get_comments(oid, limit=100, sort="hot", cookie=None):
     use_wbi = True
     mode = 3 if sort == "hot" else 2
     out, seen, cursor = [], set(), None
-    max_pages = (limit // PS_MAX) + 4
+    # 每页 ps=30，但上游偶尔只回 28–29 条；按"每页最少 20 条顶层"估上限，
+    # 保证 `--comments 300` 也拿得满。max_pages 只是安全阀，正常会在 top_count 达标时提前 break。
+    max_pages = (limit // 20) + 5
     top_count = 0
     for _ in range(max_pages):
         if top_count >= limit:
@@ -312,11 +351,19 @@ def get_comments(oid, limit=100, sort="hot", cookie=None):
                 })
             emotes = [k for k in (content.get("emote") or {}) if isinstance(k, str)]
 
-            if rpid is not None and rpid not in seen and (msg or pics):
+            added = False
+            if rpid is not None and rpid not in seen and (msg or pics or emotes):
                 seen.add(rpid)
+                added = True
                 rc = node.get("reply_control") or {}
                 loc = (rc.get("location") or "").replace("IP属地：", "").replace("IP属地:", "").strip()
                 li = member.get("level_info") or {}
+                # 清洗规则：**中英文表情占位符一律从正文里去掉**，表情名单独存进 emotes。
+                # 旧正则 `\[[a-zA-Z0-9_]+\]` 只认英文，`[抓狂]`/`[傲娇]` 这类中文表情会留在正文里，
+                # 与 emotes 字段重复，也让「清洗后为空 = 纯表情」的判断失效。
+                # B站表情格式固定为 `[名称]`（≤16 字、无空格），正文里极少出现同形方括号。
+                clean_text = re.sub(r"\[[^\[\]\n]{1,16}\]", "", msg).strip()
+                kind = "picture" if pics else ("emote" if emotes else "text")
                 out.append({
                     "rpid": rpid,
                     "author": member.get("uname") or "匿名用户",
@@ -326,7 +373,10 @@ def get_comments(oid, limit=100, sort="hot", cookie=None):
                     # 是两种不同的信号，不能互相替代。楼中楼自身 rcount 恒为 0。
                     "rcount": node.get("rcount") or 0,
                     "is_reply": is_reply,
-                    "content": re.sub(r"\[[a-zA-Z0-9_]+\]", "", msg).strip(),
+                    "content": clean_text,
+                    # kind 让下游可以分开统计：picture / emote / text。
+                    # 纯表情评论以前会因为正文非空而混进"有效文本"，现在能一眼分开。
+                    "kind": kind,
                     # 下面五项是 2026-10-19 补的：原来全被归一化掉了
                     "pictures": pics,
                     "emotes": emotes,
@@ -340,7 +390,9 @@ def get_comments(oid, limit=100, sort="hot", cookie=None):
                 if isinstance(replies, list):
                     for rp in replies[:3]:
                         walk(rp, True)
-            return (not is_reply)
+            # 必须返回"这一次是否真的新增了顶层"，不能只看 is_reply：
+            # 游标翻页偶有重叠，去重跳过的条目若仍计数，top_count 会虚增、提前 break 少拿。
+            return added and (not is_reply)
 
         data = d.get("data") or {}
         for rep in (data.get("replies") or []):
@@ -367,43 +419,70 @@ def fmt_ts(sec):
 def comment_stats(cmts):
     """评论区的便宜指标——不读图就能算，用于决定「要不要读图」。
 
-    picture_like_share 是关键判据：实测缇宝 68.9% 的顶层条数占 97.3% 的赞，
-    巫师只有 3.4% 的条数却占 25.5% 的赞（必须看），社保 5.0% 只占 6.4%（可跳过）。
+    picture_like_share 是关键判据：实测缇宝 57.0% 的条数占 96.8% 的赞，
+    巫师只有 5.0% 的条数却占 28.3% 的赞（必须看），社保 7.0% 只占 0.8%（可跳过）。
     所以判据用「图片评论占总赞」，不用「含图条数占比」。
 
-    ⚠️ 一律按**顶层评论**算。楼中楼每楼只取 3 条（截断），样本有偏，
-    混进来会把图片占比稀释、把等级分布压平。
+    ⚠️ 两条口径纪律（2026-10-19 实测，别踩）：
+
+    1. **一律按顶层评论算**。楼中楼每楼只取 3 条（截断），样本有偏，
+       混进来会把图片占比稀释、把等级分布压平。
+
+    2. **判据固定按「前 100 条顶层」计算，与实际 `--comments` 解耦**。
+       同一条视频实测（社保那期）：取 50/100/200/300 条顶层时，
+       含图条数恒为 7，但「图片占赞」分别是 1.4% / 0.8% / 0.7% / 0.6%——
+       **随样本深度单调下降**，因为分子不变、分母随长尾膨胀。
+       若不固定深度，同一个视频会因采样量不同而判出 must / skip 两种结果。
+       阈值 15% 是在 100 条深度下标定的，所以判据也必须在 100 条深度上算。
     """
     if not cmts:
         return {}
     top = [c for c in cmts if not c.get("is_reply")]
-    base = top or cmts          # 极端情况下全是楼中楼，退回全集
+    alltop = top or cmts          # 极端情况下全是楼中楼，退回全集
+
+    # ↓ 判据专用：固定前 100 条（按热度已排序），不随采样量漂移
+    base = alltop[:100]
     total_like = sum(c["likes"] for c in base) or 1
     with_pic = [c for c in base if c.get("pictures")]
     pic_like = sum(c["likes"] for c in with_pic)
     pure_pic = [c for c in with_pic if not c["content"]]
+    pure_emo = [c for c in base if c.get("kind") == "emote"]
+
+    # ↓ 描述统计用全样本，样本越大越稳
     lv_count, lv_like = {}, {}
-    for c in base:
+    body_like = sum(c["likes"] for c in alltop) or 1
+    for c in alltop:
         lv = c.get("level") or 0
         lv_count[lv] = lv_count.get(lv, 0) + 1
         lv_like[lv] = lv_like.get(lv, 0) + c["likes"]
     return {
-        "n_top": len(base),
+        "n_top": len(alltop),
         "n_replies": len(cmts) - len(top),
+        "judge_depth": len(base),      # 判据实际用的深度（≤100）
         "total_likes": total_like,
         "with_picture": len(with_pic),
         "picture_share": round(len(with_pic) / len(base) * 100, 1),
         "picture_like_share": round(pic_like / total_like * 100, 1),
         "pure_picture": len(pure_pic),
         "pure_picture_like_share": round(sum(c["likes"] for c in pure_pic) / total_like * 100, 1),
+        # 纯表情（无图无文）——这类评论对正文分析零贡献，但不该被静默丢掉，
+        # 它的条数/赞量是「表演场」形态的直接证据（缇宝那期 12% 的条数）。
+        "pure_emote": len(pure_emo),
+        "pure_emote_like_share": round(sum(c["likes"] for c in pure_emo) / total_like * 100, 1),
+        # 评论区形态判别要用（见 video-types.md 三·五）。两个都从顶层样本算：
+        #   reply_intensity = 平均每层有多少条楼中楼 → 争论强度（用 rcount 真值，不用抓到的截断条数）
+        #   reply_to_like   = 楼中楼总数 ÷ 赞总数（%）→ 评论活跃度，对应「评论/赞 >15%」这个信号
+        "reply_intensity": round(sum(c.get("rcount") or 0 for c in alltop) / max(len(alltop), 1), 2),
+        "reply_to_like": round(sum(c.get("rcount") or 0 for c in alltop)
+                                / max(sum(c["likes"] for c in alltop), 1) * 100, 1),
         "picture_verdict": ("must" if pic_like / total_like >= 0.15
                             else "sample" if pic_like / total_like >= 0.05
                             else "skip"),
         "level_count": dict(sorted(lv_count.items(), reverse=True)),
-        "level_like_share": {k: round(v / total_like * 100, 1)
+        "level_like_share": {k: round(v / body_like * 100, 1)
                              for k, v in sorted(lv_like.items(), reverse=True)},
-        "locations": _top_locations(base),
-        "senior_members": sum(1 for c in base if c.get("is_senior")),
+        "locations": _top_locations(alltop),
+        "senior_members": sum(1 for c in alltop if c.get("is_senior")),
     }
 
 
@@ -456,9 +535,11 @@ def main():
         result["comments_meta"] = st
         print(f"[OK] 评论：{len(cmts)} 条去重（全站 {total}）", file=sys.stderr)
         if st:
+            # 分子分母都用判据深度（≤100），不要混用 n_top——否则会打印出 "7/300（7.0%）" 这种自相矛盾
             print(f"[OK] 顶层 {st['n_top']} 条 + 楼中楼 {st['n_replies']} 条；"
-                  f"图片评论 {st['with_picture']}/{st['n_top']}（{st['picture_share']}%），"
-                  f"占样本赞量 {st['picture_like_share']}% ⇒ 判读：{st['picture_verdict']}",
+                  f"按前 {st['judge_depth']} 条算，图片评论 {st['with_picture']} 条"
+                  f"（{st['picture_share']}%），占样本赞量 {st['picture_like_share']}%"
+                  f" ⇒ 判读：{st['picture_verdict']}",
                   file=sys.stderr)
             print(f"[OK] 等级分布（条数）：{st['level_count']}　（赞占比）：{st['level_like_share']}",
                   file=sys.stderr)
@@ -488,13 +569,21 @@ def main():
             md += [f"## 评论（按{('热度' if args.sort == 'hot' else '时间')}，{len(result['comments'])} 条）", ""]
             st = result.get("comments_meta") or {}
             if st:
-                md += [f"> 含图 {st['with_picture']}/{st['n']}（{st['picture_share']}%），"
-                       f"占样本赞量 {st['picture_like_share']}%；"
+                md += [f"> 顶层 {st['n_top']} 条 + 楼中楼 {st['n_replies']} 条；"
+                       f"按前 {st['judge_depth']} 条算，含图 {st['with_picture']} 条"
+                       f"（{st['picture_share']}%），占样本赞量 {st['picture_like_share']}%；"
                        f"等级分布 {st['level_count']}；IP 属地 {st['locations']}", ""]
             for c in sorted(result["comments"], key=lambda x: -x["likes"]):
                 tag = "（楼中楼）" if c["is_reply"] else ""
                 pics = f"[图×{len(c['pictures'])}] " if c.get("pictures") else ""
-                body = c["content"] or "（纯图片，无文字）"
+                if c["content"]:
+                    body = c["content"]
+                elif c.get("kind") == "picture":
+                    body = "（纯图片，无文字）"
+                elif c.get("kind") == "emote":
+                    body = f"（仅表情：{' '.join(c.get('emotes') or [])}）"
+                else:
+                    body = "（空）"
                 md += [f"- **{c['likes']}赞** {c['author']}{tag}：{pics}{body}"]
         md_path = outdir / f"{bvid}.md"
         md_path.write_text("\n".join(md), encoding="utf-8")

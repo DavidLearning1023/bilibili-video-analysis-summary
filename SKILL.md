@@ -60,13 +60,20 @@ description: 分析并总结 B站（bilibili）视频，产出可视化 HTML 报
 
 | 通道 | 用途 | 说明 |
 |---|---|---|
-| **A. MCP 工具**（首选） | 元数据 / 字幕 / 关键词定位 / 评论 | 已配置 `bilibili-mcp` 时优先用。参数见 `references/mcp-tools.md` |
-| **B. `scripts/fetch_video.py`**（兜底） | 同上，且**评论条数不受限制**、**保留图片与用户字段** | 自包含，仅依赖 Python 标准库。MCP 不可用、需要批量、或评论要拉很多时用它 |
-| **C. 两个专用脚本**（MCP 永远给不了的） | 评论图片 / 弹幕 | 见下面两节。**必须显式调用，不会自动发生** |
+| **B. `scripts/fetch_video.py`**（**评论首选**） | 元数据 / 字幕 / 评论 / **图片与用户字段** / 便宜指标 | 自包含，仅依赖标准库。**评论一律走它**，见下面的理由 |
+| **A. MCP 工具**（字幕与定位用） | 字幕关键词定位 / 章节 / 收藏夹 | 参数见 `references/mcp-tools.md`。**不要用它取评论** |
+| **C. 两个专用脚本** | 评论图片 / 弹幕 | 见下面两节。**必须显式调用，不会自动发生** |
 
-> ⚠️ **MCP 的 `get_video_comments` 拿不到评论图片**（已实测 1.14.1 与最新 1.14.3 都不行）。
-> 它的归一化只保留 `content.message`，`content.pictures` / `content.emote` / 用户等级 / IP 属地
-> 在服务端就被丢掉了。所以只要分析涉及"评论区里有图"，就必须走通道 B 或 C，不要指望 MCP。
+> ⚠️ **为什么评论默认不走 MCP**（2026-10-19 定）：MCP 的 `get_video_comments` 拿不到
+> `content.pictures` / `emote` / 用户等级 / IP 属地（1.14.1 与最新 1.14.3 实测都不行，
+> 它在服务端归一化时只保留 `content.message`）。
+>
+> 更要命的是**它不是"少一个字段"，是少一个判断依据**：图片占比只有 B 通道算得出来，
+> 而"要不要读图"这个决策依赖它。用 MCP 取评论 ⇒ 永远不知道有 96.8% 的赞藏在图里 ⇒
+> 既不会触发 C-1，也不会发现自己漏了。**这个漏是静默的。**
+>
+> 所以：**评论默认走 B（一次调用同时拿到评论、图片、等级、属地、阈值判读），
+> MCP 只用来做字幕关键词定位和章节。** B 不可用时再退回 A，但要在报告里写明"未统计评论区图像"。
 
 ### C-1. 评论图片（`scripts/fetch_comment_media.py`）
 
@@ -74,8 +81,8 @@ B站评论接口一直在返回 `content.pictures[].img_src`，可直接下载�
 
 ```bash
 python scripts/fetch_comment_media.py BV1Vkag6TExf --comments 100
-# 已有 fetch_video.py 的 JSON 时复用，不重复请求：
-python scripts/fetch_comment_media.py BV1Vkag6TExf --json ./out/BV1Vkag6TExf.json
+# 已有 fetch_video.py 的 JSON 时复用，不重复请求（此时 BV 号可省略，从 JSON 里读）：
+python scripts/fetch_comment_media.py --json ./out/BV1Vkag6TExf.json
 ```
 
 **依赖 PIL，主受管环境没装**，必须用
@@ -90,6 +97,12 @@ python scripts/fetch_comment_media.py BV1Vkag6TExf --json ./out/BV1Vkag6TExf.jso
 | < 5% | skip | 跳过，在报告 3.1 注明"图片 N 条、占赞 X%，未纳入" |
 
 **为什么用这个判据**：实测巫师那期含图只有 5.0% 的条数，却占 **28.3%** 的赞——按条数会判"抽样"，按赞量才是"必做"。
+
+> ⚠️ **判据固定按「前 100 条顶层评论」计算，与 `--comments N` 解耦**。
+> 实测社保那期：取 50 / 100 / 200 / 300 条顶层，含图条数恒为 7，但"图片占赞"分别是
+> 1.4% / 0.8% / 0.7% / 0.6%——**随样本深度单调下降**（分子不变、分母随长尾膨胀）。
+> 不固定深度的话，同一个视频会因采样量不同判出 must 和 skip 两种结果。脚本已按此实现
+> （`comment_stats()` 的 `judge_depth`），别改成全样本。
 
 **两级读图（准确率的来源）**：
 
@@ -109,6 +122,8 @@ python scripts/fetch_comment_media.py BV1Vkag6TExf --json ./out/BV1Vkag6TExf.jso
 
 ```bash
 python scripts/fetch_danmaku.py BV1dmJi6yEAi --json ./out/BV1dmJi6yEAi.json --top 5
+# 已取过数时 BV 号可省略：
+python scripts/fetch_danmaku.py --json ./out/BV1dmJi6yEAi.json --top 5
 ```
 
 只需 `cid`（在 `pages[0].cid`）。接口 `x/v1/dm/list.so?oid={cid}` 返回 XML，无需登录。
@@ -143,17 +158,16 @@ python scripts/fetch_danmaku.py BV1dmJi6yEAi --json ./out/BV1dmJi6yEAi.json --to
 
 **不要给「评论/弹幕」比值硬套因果**：缇宝（18 秒）2.89:1、刹车（25:24）3.19:1，时长差 85 倍比值几乎一样。这个数受题材/时长/UP 主设置共同影响。
 
-**通道 B 用法**（已实测可用）：
+**怎么选**：
 
-判断规则（**默认优先 A**——体验最完整；MCP 通道评论上限为 300 条主评论，常规分析完全够用）：
-
-- 只是读**一个字幕 + 几十条评论** → 用 A
-- 需要**按评论总数取前 10%–20%**、要**批量处理多条视频**、或 MCP 报错 → 用 B
+- **评论 → 一律用 B**。一次调用同时拿到评论、图片、用户等级、IP 属地与阈值判读，不用二次补数
+- **字幕关键词定位 / 章节 / 收藏夹 → 用 A**。这些 B 没有现成封装
+- **要评论图片、要弹幕 → 用 C**（见上两节）
 
 **通道 B 用法**（已实测可用）：
 
 ```bash
-# 元数据 + 字幕 + 前 100 条去重评论（含楼中楼），同时输出 markdown
+# 元数据 + 字幕 + 前 100 条**顶层**评论（楼中楼另附，不占名额），同时输出 markdown
 python scripts/fetch_video.py BV1r2ey6EEh5 --comments 100 --markdown --out ./out
 
 python scripts/fetch_video.py BV1r2ey6EEh5 --comments 0        # 只要字幕
@@ -161,6 +175,9 @@ python scripts/fetch_video.py BV1r2ey6EEh5 --no-subtitle --comments 200
 python scripts/fetch_video.py BV1r2ey6EEh5 --page 4            # 指定分P
 python scripts/fetch_video.py BV1r2ey6EEh5 --sort time --comments 80
 ```
+
+> `--comments N` 的 N 是**顶层评论条数**（2026-10-19 改）。实际返回条数会大于 N，因为楼中楼是附加的。
+> 但**「图片占赞」这个判据固定按前 100 条顶层算，与 N 无关**——否则同一个视频会因为采样量不同判出 must / skip 两种结果。
 
 **要音频/画面时，别现场拼 urllib ——用 `scripts/fetch_media.py`。** 它已经把 B站 CDN 的四道坎封在内部（缺 Referer → 567；大文件单次请求被静默截断；截断的 m4s 仍能被 ffprobe 读出时长，到解码才报错；**并发数决定吞吐**），一次调用完成「Range 探长 → 多源取一致长度 → 多线程分段 → partial 逐段推进 → 原子合并 → 字节数校验」：
 
@@ -215,7 +232,7 @@ python scripts/check_setup.py
 
 ### 第 2 步：取数据
 
-用通道 A/B/C 取：**元数据 + 字幕 + 评论 +（按需）评论图片 +（按需）弹幕**。
+用上面的分工取：**元数据 + 字幕（A/B）+ 评论（B）+（按需）评论图片与弹幕（C）**。
 
 > 💡 顺手把第 5 步 ① 的「总结文档放哪里」一问发出去——取数要花时间，别等全都拉完了再停下来问。
 
@@ -314,14 +331,18 @@ python scripts/fetch_media.py BVxxx --video 1080 --out ./m        # ③ 只有�
 
 ### 第 4 步：挖评论区
 
-**先判形态，再决定怎么读**（2026-10-19 新增，详见 `references/video-types.md` 三·五节）：
+**先判形态，再决定怎么读**（2026-10-19 新增，详见 `references/video-types.md` 三·五节）。
+三个数都在 `comments_meta` 里，取数即得：
 
-| 形态 | 判别（取数即得） | 读法 |
+| 形态 | 脚本侧信号 | 读法 |
 |---|---|---|
-| 辩论场 | 评论/赞 >15%、楼中楼/顶层 >1.2 | 三轴聚类 + 逐簇对照 |
-| 举证场 | 图片占样本赞量 >15% | **先读图再读字**，图是论据本体 |
-| 表演场 | 含图条数 >30%，或 评论/弹幕 >2 且赞币比 >20:1 | 按行为分层（@ / 表情 / 观点） |
-| 空场 | 评论多但核心论点提及率 <5% | 写明"论证没有进入讨论"，这是发现不是缺陷 |
+| 辩论场 | `reply_to_like` >10% 且 `picture_like_share` <10% | 三轴聚类 + 逐簇对照 |
+| 举证场 | `picture_like_share` >15% 且 `reply_to_like` <10% | **先读图再读字**，图是论据本体 |
+| 表演场 | `picture_like_share` >50% | 按行为分层（@ / 表情 / 观点） |
+| 空场 | `reply_intensity` <2 **且**读文本后核心论点提及率 <5% | 写明"论证没有进入讨论"，这是发现不是缺陷 |
+
+> ⚠️ `reply_intensity` 单独判不了形态：缇宝 16.90 是表演场、刹车 15.95 是辩论场，
+> 数值几乎一样而形态相反。必须和 `picture_like_share` 一起看。
 
 **方法论**（按优先级）：
 
