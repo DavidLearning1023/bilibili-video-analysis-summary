@@ -159,18 +159,43 @@ def get_info(bvid, cookie=None):
             raise RuntimeError(f"获取视频信息失败：{err or err2 or (d or {}).get('message')}")
         d = d2
     v = d["data"]
+    owner = v.get("owner") or {}
     return {
         "bvid": v.get("bvid"),
         "aid": v.get("aid"),
         "title": v.get("title"),
-        "author": (v.get("owner") or {}).get("name"),
+        "author": owner.get("name"),
+        # mid 是识别"UP 主本人发的弹幕/评论"的唯一依据（弹幕 XML 第 7 位 = crc32(uid)）。
+        # 少了它，fetch_danmaku.py 的 UP 主识别整条链就断了。
+        "author_mid": owner.get("mid"),
         "duration": v.get("duration"),
         "pubdate": v.get("pubdate"),
         "desc": v.get("desc"),
+        "pic": v.get("pic"),
+        "tname": v.get("tname") or v.get("tname_v2"),
         "stats": v.get("stat"),
         "pages": [{"page": p.get("page"), "cid": p.get("cid"), "title": p.get("part"),
                    "duration": p.get("duration")} for p in (v.get("pages") or [])],
+        "tags": _get_tags(bvid, cookie),
     }
+
+
+def _get_tags(bvid, cookie=None):
+    """视频标签（分区之外的第二层分类）。取不到就返回 []，不让它拖垮主流程。"""
+    for path in ("/x/web-interface/view/detail", "/x/tag/archive/tags"):
+        try:
+            st, d, _ = _fetch(path, {"bvid": bvid}, cookie)
+            if st != 200 or not d or d.get("code") != 0:
+                continue
+            data = d.get("data") or {}
+            tags = data.get("Tags") or data.get("tags") or []
+            out = [t.get("tag_name") or t.get("name") for t in tags if isinstance(t, dict)]
+            out = [t for t in out if t]
+            if out:
+                return out
+        except Exception:
+            continue
+    return []
 
 
 def get_transcript(bvid, cid, cookie=None, prefer="zh-Hans"):
@@ -225,14 +250,21 @@ def get_transcript(bvid, cid, cookie=None, prefer="zh-Hans"):
 
 
 def get_comments(oid, limit=100, sort="hot", cookie=None):
-    """游标分页 + rpid 去重。返回 list[dict]"""
+    """游标分页 + rpid 去重。
+
+    ⚠️ limit 的语义（2026-10-19 修正）：**limit 是顶层评论条数**，楼中楼是附加的，
+    不占名额。旧实现按「总条数」截断，导致 `--comments 120` 实际只拿到 45 条顶层
+    （75 条楼中楼吃掉 62.5% 的配额），三轴分布与「图片占总赞」的口径都被稀释。
+    现在返回 length 可能 > limit，但顶层恒 <= limit。
+    """
     path = "/x/v2/reply/wbi/main"
     use_wbi = True
     mode = 3 if sort == "hot" else 2
     out, seen, cursor = [], set(), None
-    max_pages = (limit // PS_MAX) + 3
+    max_pages = (limit // PS_MAX) + 4
+    top_count = 0
     for _ in range(max_pages):
-        if len(out) >= limit:
+        if top_count >= limit:
             break
         params = {"oid": oid, "type": 1, "mode": mode, "ps": PS_MAX}
         if cursor:
@@ -248,15 +280,43 @@ def get_comments(oid, limit=100, sort="hot", cookie=None):
             break
 
         def walk(node, is_reply=False):
-            """展平主评论与其楼中楼回复"""
+            """展平主评论与其楼中楼回复
+
+            2026-10-19 修：原实现只取 content.message，会把「纯图片评论」整条丢掉
+            （message 为空 ⇒ `if msg` 为假），并把 [doge] 这类表情占位符清洗成空串。
+            实测缇宝那期 178 条里 87 条带图、占样本赞量 96.8%，最高赞 21,055 就是一张图，
+            全部被降级成空字符串。现在保留 pictures / emote / level / location / ctime，
+            并允许「有图无文」的评论进入样本。
+            """
             if not isinstance(node, dict):
                 return
             member = node.get("member") or {}
             content = node.get("content") or {}
             msg = (content.get("message") or "").strip()
             rpid = node.get("rpid")
-            if msg and rpid is not None and rpid not in seen:
+
+            pics = []
+            for p in (content.get("pictures") or []):
+                if not isinstance(p, dict):
+                    continue
+                src = p.get("img_src") or p.get("img_url")
+                if not src:
+                    continue
+                if src.startswith("//"):
+                    src = "https:" + src
+                pics.append({
+                    "url": src,
+                    "w": p.get("img_width"),
+                    "h": p.get("img_height"),
+                    "size": p.get("img_size"),
+                })
+            emotes = [k for k in (content.get("emote") or {}) if isinstance(k, str)]
+
+            if rpid is not None and rpid not in seen and (msg or pics):
                 seen.add(rpid)
+                rc = node.get("reply_control") or {}
+                loc = (rc.get("location") or "").replace("IP属地：", "").replace("IP属地:", "").strip()
+                li = member.get("level_info") or {}
                 out.append({
                     "rpid": rpid,
                     "author": member.get("uname") or "匿名用户",
@@ -267,23 +327,32 @@ def get_comments(oid, limit=100, sort="hot", cookie=None):
                     "rcount": node.get("rcount") or 0,
                     "is_reply": is_reply,
                     "content": re.sub(r"\[[a-zA-Z0-9_]+\]", "", msg).strip(),
+                    # 下面五项是 2026-10-19 补的：原来全被归一化掉了
+                    "pictures": pics,
+                    "emotes": emotes,
+                    "level": li.get("current_level"),
+                    "location": loc or None,
+                    "ctime": node.get("ctime"),
+                    "is_senior": member.get("is_senior_member") or 0,
                 })
             if not is_reply:
                 replies = node.get("replies") or []
                 if isinstance(replies, list):
                     for rp in replies[:3]:
                         walk(rp, True)
+            return (not is_reply)
 
         data = d.get("data") or {}
         for rep in (data.get("replies") or []):
-            if len(out) >= limit:
+            if top_count >= limit:
                 break
-            walk(rep)
+            if walk(rep):
+                top_count += 1
         cur = data.get("cursor") or {}
         cursor = cur.get("next")
         if not cursor or cur.get("is_end"):
             break
-    return out[:limit], ((d.get("data") or {}).get("cursor") or {}).get("all_count")
+    return out, ((d.get("data") or {}).get("cursor") or {}).get("all_count")
 
 
 def fmt_ts(sec):
@@ -293,6 +362,55 @@ def fmt_ts(sec):
     h, rem = divmod(sec, 3600)
     m, s = divmod(rem, 60)
     return f"{h}:{m:02d}:{s:02d}" if h else f"{m:02d}:{s:02d}"
+
+
+def comment_stats(cmts):
+    """评论区的便宜指标——不读图就能算，用于决定「要不要读图」。
+
+    picture_like_share 是关键判据：实测缇宝 68.9% 的顶层条数占 97.3% 的赞，
+    巫师只有 3.4% 的条数却占 25.5% 的赞（必须看），社保 5.0% 只占 6.4%（可跳过）。
+    所以判据用「图片评论占总赞」，不用「含图条数占比」。
+
+    ⚠️ 一律按**顶层评论**算。楼中楼每楼只取 3 条（截断），样本有偏，
+    混进来会把图片占比稀释、把等级分布压平。
+    """
+    if not cmts:
+        return {}
+    top = [c for c in cmts if not c.get("is_reply")]
+    base = top or cmts          # 极端情况下全是楼中楼，退回全集
+    total_like = sum(c["likes"] for c in base) or 1
+    with_pic = [c for c in base if c.get("pictures")]
+    pic_like = sum(c["likes"] for c in with_pic)
+    pure_pic = [c for c in with_pic if not c["content"]]
+    lv_count, lv_like = {}, {}
+    for c in base:
+        lv = c.get("level") or 0
+        lv_count[lv] = lv_count.get(lv, 0) + 1
+        lv_like[lv] = lv_like.get(lv, 0) + c["likes"]
+    return {
+        "n_top": len(base),
+        "n_replies": len(cmts) - len(top),
+        "total_likes": total_like,
+        "with_picture": len(with_pic),
+        "picture_share": round(len(with_pic) / len(base) * 100, 1),
+        "picture_like_share": round(pic_like / total_like * 100, 1),
+        "pure_picture": len(pure_pic),
+        "pure_picture_like_share": round(sum(c["likes"] for c in pure_pic) / total_like * 100, 1),
+        "picture_verdict": ("must" if pic_like / total_like >= 0.15
+                            else "sample" if pic_like / total_like >= 0.05
+                            else "skip"),
+        "level_count": dict(sorted(lv_count.items(), reverse=True)),
+        "level_like_share": {k: round(v / total_like * 100, 1)
+                             for k, v in sorted(lv_like.items(), reverse=True)},
+        "locations": _top_locations(base),
+        "senior_members": sum(1 for c in base if c.get("is_senior")),
+    }
+
+
+def _top_locations(cmts, n=8):
+    from collections import Counter
+    c = Counter(x["location"] for x in cmts if x.get("location"))
+    return dict(c.most_common(n))
 
 
 def main():
@@ -315,7 +433,8 @@ def main():
     print(f"[OK] {info['title']}  |  {info['author']}  |  {info['duration']}s  |  {len(info['pages'])}P",
           file=sys.stderr)
 
-    result = {"info": info, "transcript": None, "comments": [], "comments_total": None}
+    result = {"info": info, "transcript": None, "comments": [], "comments_total": None,
+              "comments_meta": None}
 
     if not args.no_subtitle:
         idx = max(0, min(args.page - 1, len(info["pages"]) - 1))
@@ -333,7 +452,19 @@ def main():
         cmts, total = get_comments(info["aid"], args.comments, args.sort, cookie)
         result["comments"] = cmts
         result["comments_total"] = total
+        st = comment_stats(cmts)
+        result["comments_meta"] = st
         print(f"[OK] 评论：{len(cmts)} 条去重（全站 {total}）", file=sys.stderr)
+        if st:
+            print(f"[OK] 顶层 {st['n_top']} 条 + 楼中楼 {st['n_replies']} 条；"
+                  f"图片评论 {st['with_picture']}/{st['n_top']}（{st['picture_share']}%），"
+                  f"占样本赞量 {st['picture_like_share']}% ⇒ 判读：{st['picture_verdict']}",
+                  file=sys.stderr)
+            print(f"[OK] 等级分布（条数）：{st['level_count']}　（赞占比）：{st['level_like_share']}",
+                  file=sys.stderr)
+            if st["picture_verdict"] != "skip":
+                print(f"[HINT] 建议接着跑：python scripts/fetch_comment_media.py {bvid} "
+                      f"--comments {args.comments}", file=sys.stderr)
 
     outdir = pathlib.Path(args.out)
     outdir.mkdir(parents=True, exist_ok=True)
@@ -355,9 +486,16 @@ def main():
             md += [""]
         if result["comments"]:
             md += [f"## 评论（按{('热度' if args.sort == 'hot' else '时间')}，{len(result['comments'])} 条）", ""]
+            st = result.get("comments_meta") or {}
+            if st:
+                md += [f"> 含图 {st['with_picture']}/{st['n']}（{st['picture_share']}%），"
+                       f"占样本赞量 {st['picture_like_share']}%；"
+                       f"等级分布 {st['level_count']}；IP 属地 {st['locations']}", ""]
             for c in sorted(result["comments"], key=lambda x: -x["likes"]):
                 tag = "（楼中楼）" if c["is_reply"] else ""
-                md += [f"- **{c['likes']}赞** {c['author']}{tag}：{c['content']}"]
+                pics = f"[图×{len(c['pictures'])}] " if c.get("pictures") else ""
+                body = c["content"] or "（纯图片，无文字）"
+                md += [f"- **{c['likes']}赞** {c['author']}{tag}：{pics}{body}"]
         md_path = outdir / f"{bvid}.md"
         md_path.write_text("\n".join(md), encoding="utf-8")
         print(f"[OK] 已写入 {md_path}", file=sys.stderr)

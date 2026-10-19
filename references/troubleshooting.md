@@ -197,6 +197,56 @@ python scripts/fetch_media.py BVxxx --video 1080 --out ./m --force    # 怀疑�
 
 ---
 
+## §6.7 评论图片 / 弹幕相关的四个坑（2026-10-19 新增）
+
+### ① 分析里"评论全是空字符串 / 纯表情"——先怀疑字段被丢了，不要怀疑内容
+
+**症状**：样本里大量 `content: ""`，你据此判"这批是纯表情、无信息"，然后报告里写"表演层占 63.7% 的赞"。
+
+**病因**：B站接口一直在返回 `content.pictures`，而**两条通道的归一化都在丢它**：
+
+| 通道 | 丢在哪 |
+|---|---|
+| MCP `get_video_comments` | `normalizeRemoteComment()` 只取 `content.message`；**1.14.3 也没修**（解包实测） |
+| 本仓库 `fetch_video.py` | `walk()` 只取 message，且 `if msg:` 会整条丢掉纯图片评论（**已修**） |
+
+**做法**：`content` 为空时看 `pictures` 是否非空。判"值不值得读图"用 `comments_meta.picture_like_share`（图片占样本赞量），不看到图率。详见 SKILL.md 通道 C-1。
+
+### ② `fetch_comment_media.py` 报 `ModuleNotFoundError: No module named 'PIL'`
+
+**病因**：PIL 只装在 `envs/default`，主受管环境（3.13.12）没有。
+
+**做法**：
+
+```bash
+"C:\Users\DavidHui\.workbuddy\binaries\python\envs\default\Scripts\python.exe" \
+  scripts/fetch_comment_media.py BVxxx --comments 100
+```
+
+这个 venv 同时也是 playwright 所在的环境（PDF 渲染也走它）。
+
+### ③ 弹幕接口 412 / XML 解析报 `not well-formed (invalid token): line 1, column 0`
+
+**两个不同的问题，别混**：
+
+| 症状 | 病因 | 做法 |
+|---|---|---|
+| `HTTP Error 412` | **IP 级风控限流**。换 cookie、换 UA、换 curl 都没用（已实测） | 等 5–10 分钟；或先用浏览器打开一次视频页"暖机"；已有 XML 时用 `--xml` 离线分析 |
+| `ParseError: not well-formed` | 响应标 `Content-Encoding: deflate`，实际是 **raw deflate（无 zlib 头）** | 必须 `zlib.decompress(raw, -zlib.MAX_WBITS)`；用带头的 `zlib.decompress(raw)` 会报 "incorrect header check" |
+
+### ④ 想靠弹幕哈希反查 UP 主 —— **做不到，别再试**
+
+网上流传「XML 的 `p[6]` 是 `crc32(uid)`，可反查 UP 主」。**实测不成立**：
+
+- 《刹车断裂事件》UP 主 mid=278761367 → `crc32` = `9a4fc7ef`
+- 而那条确定是作者自述的「本期推广西昊电竞椅」哈希是 `0db460b5`
+- 又试了 `^0xffffffff`、int 4 字节、int 8 字节、`md5[:8]`、`sha1[:8]`，五种变体全部不匹配
+- protobuf 的 `seg.so` 里也搜不到 `varint(mid)`
+
+**B站只给哈希，且算法不是简单 crc32。** `fetch_danmaku.py` 因此只输出「疑似作者/披露弹幕」（内容启发式 + 明确标注未验证）。要判"这是不是作者说的"，用语气：第一人称自述（"本期推广X，我自己用Y"）vs 观众疑问（"推X你坐Y？"）。
+
+---
+
 ## §7 某些视频完全读不到（付费 / 地区限制 / 私密 / 下架）
 
 **正常结果，不要尝试绕过。** B站对这些内容有访问控制，工具按设计不规避。直接告诉用户读不到即可。
