@@ -234,16 +234,24 @@ python scripts/fetch_media.py BVxxx --video 1080 --out ./m --force    # 怀疑�
 | `HTTP Error 412` | **IP 级风控限流**。换 cookie、换 UA、换 curl 都没用（已实测） | 等 5–10 分钟；或先用浏览器打开一次视频页"暖机"；已有 XML 时用 `--xml` 离线分析 |
 | `ParseError: not well-formed` | 响应标 `Content-Encoding: deflate`，实际是 **raw deflate（无 zlib 头）** | 必须 `zlib.decompress(raw, -zlib.MAX_WBITS)`；用带头的 `zlib.decompress(raw)` 会报 "incorrect header check" |
 
-### ④ 想靠弹幕哈希反查 UP 主 —— **做不到，别再试**
+### ④ 三条已放弃的识别：UP 主弹幕 / 置顶评论 / up_action
 
-网上流传「XML 的 `p[6]` 是 `crc32(uid)`，可反查 UP 主」。**实测不成立**：
+**2026-10-19 用户确认放弃，不要再花时间试。**
+
+**UP 主弹幕**——网上流传「XML 的 `p[6]` 是 `crc32(uid)`，可反查 UP 主」。**实测不成立**：
 
 - 《刹车断裂事件》UP 主 mid=278761367 → `crc32` = `9a4fc7ef`
 - 而那条确定是作者自述的「本期推广西昊电竞椅」哈希是 `0db460b5`
 - 又试了 `^0xffffffff`、int 4 字节、int 8 字节、`md5[:8]`、`sha1[:8]`，五种变体全部不匹配
 - protobuf 的 `seg.so` 里也搜不到 `varint(mid)`
 
-**B站只给哈希，且算法不是简单 crc32。** `fetch_danmaku.py` 因此只输出「疑似作者/披露弹幕」（内容启发式 + 明确标注未验证）。要判"这是不是作者说的"，用语气：第一人称自述（"本期推广X，我自己用Y"）vs 观众疑问（"推X你坐Y？"）。
+**B站只给哈希，且算法不是简单 crc32。** 脚本因此只做「披露关键词扫描」，
+回答"这条视频有没有广告"，不回答"这话是谁说的"。判断发言人靠语气：
+第一人称自述（"本期推广X，我自己用Y"）vs 观众疑问（"推X你坐Y？"）。
+
+**置顶评论**——`top_replies` 的接口形态未打通，且收益不值（UP 主的补充大多也能在简介/高赞楼里找到）。
+
+**`up_action`**（UP 主是否点赞/回复某条评论）——两个样本里该字段恒为 0，不可用。
 
 ---
 

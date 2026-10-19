@@ -250,33 +250,29 @@ def main():
     else:
         print("  （无）——说明这期没有形成集体口号")
 
-    # ④ 作者/披露类弹幕
+    # ④ 披露关键词扫描
     #
-    # ⚠️ 关于「UP 主弹幕」的一条否证（2026-10-19 实测，别走回头路）：
-    #   网上流传「p[6] 是 crc32(uid)，可反查 UP 主」。本机验证**不成立**：
-    #   《刹车断裂事件》UP 主 mid=278761367 → crc32 = 9a4fc7ef，
-    #   而那条确定是作者自述的「本期推广西昊电竞椅」哈希是 0db460b5。
-    #   又试了 ^0xffffffff、int 4/8 字节、md5[:8]、sha1[:8] 五种变体，全部不匹配；
-    #   protobuf 接口 seg.so 里也搜不到 varint(mid)。**B站只给哈希，且算法不是简单 crc32。**
-    #   所以这里不承诺"识别 UP 主"，只做**内容启发式**，并如实标注"疑似"。
-    mid = info.get("author_mid")
-    h = format(zlib.crc32(str(mid).encode()) & 0xffffffff, "08x") if mid else None
-    mine = [d for d in ds if h and d["uhash"] == h]
-
-    print("\n--- 疑似作者/披露弹幕（内容启发式，非身份验证）---")
+    # ⚠️ 三条已放弃的路（2026-10-19 用户确认，别再试）：
+    #   ① 「UP 主弹幕识别」—— 网上传 p[6] = crc32(uid)，实测不成立：
+    #      《刹车断裂事件》UP 主 mid=278761367 → crc32 = 9a4fc7ef，
+    #      而那条确定是作者自述的「本期推广西昊电竞椅」哈希是 0db460b5。
+    #      又试 ^0xffffffff、int 4/8 字节、md5[:8]、sha1[:8] 五种变体全不匹配；
+    #      protobuf 的 seg.so 里也搜不到 varint(mid)。B站只给哈希，且不是简单 crc32。
+    #   ② 「置顶评论」—— top_replies 接口形态未打通，收益不值。
+    #   ③ 「up_action」（UP 主是否点赞/回复某评论）—— 两个样本里恒为 0，不可用。
+    #
+    # 保留的只有**内容扫描**：扫"推广/赞助"这类词，回答"这条视频有没有广告"，
+    # 不回答"这句话是谁说的"。用户自己看上下文就能判断语气。
+    print("\n--- 披露关键词扫描（只找线索，不判断发言人）---")
     kw = ("本期", "推广", "赞助", "广告", "合作", "恰饭", "商务", "感谢")
     hits = [d for d in ds if any(k in d["text"] for k in kw) and len(d["text"]) <= 60]
-    if mine:
-        print("  [身份验证] crc32 命中，以下可视为 UP 主本人：")
-        for d in sorted(mine, key=lambda x: x["t"]):
-            print(f"    {fmt_t(d['t'])}  {d['text'][:70]}")
     if hits:
-        for d in sorted(hits, key=lambda x: x["t"])[:10]:
+        for d in sorted(hits, key=lambda x: x["t"])[:12]:
             print(f"  {fmt_t(d['t'])}  {d['text'][:70]}")
-        if not mine:
-            print(f"  （共 {len(hits)} 条含披露关键词；未通过身份验证，请按「疑似作者或观众复述」使用）")
-    elif not mine:
-        print("  （无）")
+        print(f"  （共 {len(hits)} 条含披露关键词，{fmt_t(min(x['t'] for x in hits))} 起首次出现；"
+              f"按句子的第一人称/第三人称自行判断是作者还是观众）")
+    else:
+        print("  （无）——未发现广告披露线索")
 
     if args.save_json:
         outdir = pathlib.Path(args.out or ".")
@@ -286,7 +282,6 @@ def main():
             "bvid": bvid, "cid": cid, "n": len(ds),
             "reply": reply, "danmaku_stat": dm_total,
             "buckets": dict(sorted(buckets.items())),
-            "up_hash": (format(zlib.crc32(str(mid).encode()) & 0xffffffff, "08x") if mid else None),
             "items": ds,
         }, ensure_ascii=False, indent=1), encoding="utf-8")
         print(f"\n[OK] 已写入 {p}")
