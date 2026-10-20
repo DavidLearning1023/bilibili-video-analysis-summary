@@ -8,7 +8,10 @@ description: 分析并总结 B站（bilibili）视频，产出可视化 HTML 报
 
 ## 新用户先读这里
 
-**如果这是首次使用**（或用户问「怎么用 / 怎么配置 / 能做什么 / 怎么改」）：先读仓库根目录的 `INSTALL.md` 第五节「首次使用引导」，按清单带用户走完（自检 → 按结果引导 → 展示能力 → 给示例 → 交代维护方式）。**不要跳过自检直接分析视频**——未配置好时的失败会消耗用户的信任。
+**这是 skill，不是 MCP。** `SKILL.md` 是给 Agent 读的规则集；`@xzxzzx/bilibili-mcp` 是**上游第三方 MCP**，
+本仓库不包含它，只提供一套**可逆补丁**修它已知的 3 个 bug。三者的关系见 `INSTALL.md` 第〇节。
+
+**如果这是首次使用**（或用户问「怎么用 / 怎么配置 / 能做什么 / 怎么改」）：先读仓库根目录的 `INSTALL.md` 第七节「首次使用引导」，按清单带用户走完（自检 → 按结果引导 → 展示能力 → 给示例 → 交代维护方式）。**不要跳过自检直接分析视频**——未配置好时的失败会消耗用户的信任。
 
 ## 触发边界（最重要的一节）
 
@@ -222,19 +225,14 @@ python scripts/fetch_media.py BV11fJX6GEcL --video 1080 --force    # 怀疑旧�
 
 ## 标准流程
 
-### 第 0 步：先看本地状态（**每次动手之前**）
+### 第 0 步：确认你手上的规则是最新版（**多数人可跳过**）
 
-**这个 skill 有两层，别搞混：**
+**先判断你在哪种情况：**
 
-```
-真源      项目仓库目录（本 skill 的源，改这里）   ← Agent 的工作区
-             │  scripts/sync_skill.py --deploy
-             ↓
-部署副本   ~/.minimax/skills/<name>/     MiniMax Code 读这里
-           ~/.workbuddy/skills/<name>/    WorkBuddy 读这里
-```
-
-**规矩：先查漂移，有漂移先同步，再干活。**
+| 你的情况 | 做什么 |
+|---|---|
+| **使用者**——从 GitHub 装到 Agent 的 skills 目录，之后没再单独维护过一份 | **跳过本步**。你目录里的就是最新版，直接进第 1 步 |
+| **维护者**——项目仓库和 skill 安装位置是分开的（自己改了仓库，或一个 skill 接多个 Agent） | 跑下面的同步检查；有漂移先同步，再干活 |
 
 ```bash
 python scripts/sync_skill.py --check     # 报告漂移；退出码 1 = 有漂移（不是脚本出错）
@@ -243,17 +241,16 @@ python scripts/sync_skill.py --deploy    # 同步差异文件
 
 `--check` 返回 1 是「发现漂移」，不是失败。看到就接着跑 `--deploy`，然后**重新读本文件的最新规则**。
 
-**两种接法，脚本都认：**
+**脚本会自己判断你有没有这个需要——看它输出什么：**
 
-| 目标形态 | `--check` 输出 | 含义 |
+| 输出 | 含义 | 动作 |
 |---|---|---|
-| **junction / 符号链接**直指真源 | `[无需同步] 目标就是真源本身` | 读到的永远是最新版，**结构上不可能漂移** |
-| **普通拷贝** | `[需要同步] 缺失 N / 更新 M` | 副本落后了，先 `--deploy` |
+| `[OK] 本机只找到这一份 skill` | **你是使用者，这一步跳过** | 继续 |
+| `[无需同步] 目标就是源目录本身` | 客户端的 skills 目录**直接指向**你这份（junction / 符号链接）——**结构上不可能漂移** | 继续 |
+| `[需要同步] 缺失 N / 更新 M` | 副本落后了 | `--deploy` |
+| `[SKIP] 你是在已安装副本里运行的` | 同步方向反了 | `cd` 回项目仓库目录，或加 `--source <项目仓库路径>` |
 
-> ⚠️ 脚本必须**从项目仓库目录运行**（真源）。在部署副本里跑会被拒绝——部署副本不是真源，
-> 从它同步只会把旧版再复制一遍。
->
-> ⚠️ 两边漂移了却直接用，读到的是**旧规则**，会做出与最新设计相反的动作。
+> ⚠️ **漂移了却直接用，读到的是旧规则**，会做出与最新设计相反的动作。
 > 这是**静默错误**，和「丢评论图片字段」一个性质——不会报错，只会做错。
 
 ### 第 1 步：确认前置条件
@@ -644,7 +641,7 @@ python scripts/check_pdf.py report.pdf --images 2
 11. **「建议任务名」要说两次**——取到元数据后的第一条消息第一行，以及最终回复的第一行，格式 `建议任务名：{YYYYMMDD}-《{视频原始标题}》`。原因见第 2 步。
 12. **数字与结论只认原图**——评论图片的联系表、视频抽帧的联系表，都只用于"分类与选片"，不能用来读数。凡"有没有越线 / 打码 / 具体数字"一律回原图。
 13. **MCP 拿不到评论图片**——涉及评论区图像时必须走 `fetch_comment_media.py`，不要指望 MCP 的 `get_video_comments`。
-14. **先同步再使用**——本 skill 分「真源（项目目录）」与「部署副本（各客户端 skills 目录）」两层。每次动手前跑 `python scripts/sync_skill.py --check`；有漂移先 `--deploy` 再继续。**在部署副本里跑这个脚本会被拒绝**——那不是真源。
+14. **先同步再使用（仅维护者场景）**——若你处在「项目仓库与 skill 安装位置分开」的环境（自己改了仓库，或一个 skill 接多个 Agent），动手前跑 `python scripts/sync_skill.py --check`，有漂移先 `--deploy` 再继续。**普通安装（skill 目录即唯一一份）不需要这一步**——脚本会自己判定并告诉你跳过。
 
 ---
 
@@ -655,12 +652,12 @@ python scripts/check_pdf.py report.pdf --images 2
 ### 遇到问题时的固定动作
 
 ```
-0. 先跑 scripts/sync_skill.py --check   → 确认你读到的是最新版规则（有漂移先 --deploy）
+0. （仅维护者）跑 scripts/sync_skill.py --check → 确认你读到的是最新版规则
 1. 先跑 scripts/check_setup.py           → 90% 的问题这一步就能定位
 2. 按症状查 references/troubleshooting.md → 里面有"症状 → 诊断 → 修复"决策树
 3. 修完 → 在 references/CHANGELOG.md 追加一条记录
 4. 如果问题不在已知清单里 → 修完后务必把它补进 troubleshooting.md
-5. 改的是真源 → 收尾跑 scripts/sync_skill.py --deploy，把改动送到各客户端
+5. （仅维护者）改的是真源 → 收尾跑 scripts/sync_skill.py --deploy，把改动送到各客户端
 ```
 
 ### 按需求选文件（改哪里）
@@ -683,7 +680,7 @@ python scripts/check_pdf.py report.pdf --images 2
 | "以后按这次的教训来 / 记一下这次踩的坑" | `references/lessons.md`（追加新案例） | ❌ 不用 |
 | "MCP 报错了" | `references/troubleshooting.md` → 必要时 `assets/mcp-patch/` | ✅ 打补丁后要重启 |
 | "MCP 有新版了" | 见 `references/maintenance.md` 的升级流程 | ✅ |
-| "把改动同步到各客户端" | `python scripts/sync_skill.py --deploy`（从项目目录跑） | ✅ 副本变了要重载 skill |
+| "把改动同步到各客户端" | `python scripts/sync_skill.py --deploy`（从项目目录跑，**仅维护者**） | ✅ 副本变了要重载 skill |
 
 ### 改样式表后的必做自检（踩过坑）
 
@@ -709,6 +706,7 @@ print(pg.evaluate("() => getComputedStyle(document.querySelector('.verdict')).gr
 
 - 改动后**必须**更新 `references/CHANGELOG.md`（记录日期、改了什么、为什么、怎么验证的）
 - 结构性改动后**必须**重跑 `python scripts/check_setup.py` 和打包校验
+- **改了任何 `print` 之后必须**跑 `python scripts/check_console_encoding.py`（Windows 管道下的"假失败"扫描）
 - 详细流程见 `references/maintenance.md`
 
 ---
@@ -728,7 +726,8 @@ print(pg.evaluate("() => getComputedStyle(document.querySelector('.verdict')).gr
 | `references/mcp-tools.md` | MCP 工具参数速查与已知坑 |
 | `references/CHANGELOG.md` | **变更历史**：每次改动的原因与验证方式 |
 | `scripts/check_setup.py` | 前置条件自检（诊断入口）：MCP 补丁 / 凭据 / 连通性 |
-| `scripts/sync_skill.py` | **真源 → 部署副本** 的漂移检查与同步（`--check` / `--deploy` / `--prune`） |
+| `scripts/check_console_encoding.py` | **假失败扫描**：找出运行期字符串里当前 ANSI 代码页（GBK）编不了的字符——改了 `print` 之后必跑，否则脚本会在管道下"检查全过却 exit 1" |
+| `scripts/sync_skill.py` | **源目录 → 各客户端副本** 的漂移检查与同步（`--check` / `--deploy` / `--prune`）。**仅维护者场景**需要 |
 | `scripts/fetch_video.py` | 自包含取数脚本（元数据 / 字幕 / 评论 / **评论图片与用户字段**） |
 | `scripts/fetch_comment_media.py` | **评论图片**：阈值决策 → 下载 → 联系表（需 PIL，**缺了会自动换解释器重跑**） |
 | `scripts/fetch_danmaku.py` | **弹幕**：秒级密度曲线 / 高重复句 / 疑似披露弹幕 |

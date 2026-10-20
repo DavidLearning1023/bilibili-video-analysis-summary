@@ -4,7 +4,21 @@
 
 ---
 
-## 〇、源真源与部署模型（**先读这段，它决定你改哪里**）
+## 〇、你是哪种身份？这决定你改哪里（**先读这段**）
+
+同一个 skill 目录，在两种人手里是**两回事**：
+
+| 身份 | 你的 skill 目录 | 改动落在哪 | 要跑同步吗 |
+|---|---|---|---|
+| **使用者**（从 GitHub 装来用，偶尔让 AI 改个措辞） | **就是编辑目标** | 直接改这个目录 | **不需要**。`sync_skill.py` 与你无关 |
+| **上游维护者**（开发这份 skill，一个项目仓库接多个 Agent 客户端） | 是**部署副本** | 改**项目仓库**（真源），再部署过去 | 需要，见下 |
+
+> ⚠️ **大多数维护任务属于第一行。** 用户说"把 X 改成 Y"时，
+> **直接改他的 skill 目录**就行——那对他就是真源。别急着搞同步那套。
+>
+> 只有当你**自己**把项目仓库和客户端安装位置分开维护时（上游维护者），才有下面这层。
+
+### 上游维护者：真源 → 部署副本
 
 ```
 真源      项目仓库目录（Agent 的工作区，git 仓库）      ← 改这里
@@ -33,23 +47,24 @@ python scripts/sync_skill.py --deploy    # 收尾后：把改动送到各客户�
 | 情况 | 怎么办 |
 |---|---|
 | `--check` 退出码 1 | 有漂移 → 跑 `--deploy`，然后**重读 SKILL.md**（旧规则会做出相反动作） |
-| `--check` 说「目标就是真源本身」 | 目标是指向真源的 **junction/符号链接**，结构上不可能漂移，不用管 |
+| `--check` 说「本机只找到这一份」 | 你是使用者，这一步跳过 |
+| `--check` 说「目标就是源目录本身」 | 目标是指向真源的 **junction/符号链接**，结构上不可能漂移，不用管 |
+| `--check` 说「你是在已安装副本里运行」 | 同步方向反了 → `cd` 回项目目录，或加 `--source <真源路径>` |
 | `--deploy` 报「上游已删」的文件 | 加 `--prune`：移到 `<客户端根>/_deleted_skill-sync_<日期>/` 并写 `_MANIFEST.md`，**由用户把整个文件夹放进回收站**（不做永久删除） |
-| 在部署副本里跑这个脚本 | 会被拒绝（副本不是真源）。`cd` 回项目目录，或加 `--source <真源路径>` |
 | 部署副本自带 `.git` | 脚本不动它。它的 git 状态会显示 modified，属正常——**真源才是权威** |
 
 **两种接法，都支持：**
 
 | 接法 | 怎么来的 | 特点 |
 |---|---|---|
-| **junction / 符号链接** | `New-Item -ItemType Junction -Path <skills>\<name> -Target <真源>` | 客户端读到的**就是真源本身**，**结构上不可能漂移**，改动即时生效。Windows 限定 |
+| **junction / 符号链接** | `New-Item -ItemType Junction -Path <skills>\<name> -Target <真源>` | 客户端读到的**就是真源本身**，**结构上不可能漂移**，改动即时生效。Windows 限定（macOS/Linux 用 `ln -s`） |
 | **普通拷贝** | `sync_skill.py --deploy` 复制 | 跨平台通用，但要靠 `--check` 保证不落后 |
 
 > 同一个 skill 在不同客户端上可以混用两种接法——脚本会逐个识别并给出对应结论。
 
 **同步的粒度是文件内容（SHA256），不是 git 提交。** 所以真源改了但还没提交，照样能同步过去。
 源文件清单 = `git ls-files --cached --others --exclude-standard`（受管文件 + 未被忽略的未跟踪文件），
-自动排除 `.git/` `__pycache__/` `*.pyc`。
+自动排除 `.git/` `__pycache__/` `*.pyc`。**不是 git 仓库也能跑**（zip 安装无妨）。
 
 ---
 
@@ -158,18 +173,9 @@ python $S/scripts/fetch_video.py BV1r2ey6EEh5 --comments 20 --out /tmp/skilltest
 # 5) **GBK 崩溃扫描 + 管道下验证 exit code**（改了任何 print 之后必做）
 #    Windows 下 stdout 被管道接走时用系统 ANSI 代码页 GBK（不是 chcp 的 65001），
 #    编不了 ✅ ⚠ ⇒ 等字符 → 抛 UnicodeEncodeError → 脚本"假失败"（exit 1 但活儿早干完了）
-python -c "
-import ast,pathlib
-for p in list(pathlib.Path('scripts').rglob('*.py'))+list(pathlib.Path('assets').rglob('*.py')):
-    t=ast.parse(p.read_text(encoding='utf-8'))
-    for n in ast.walk(t):
-        if isinstance(n,ast.Constant) and isinstance(n.value,str):
-            for ch in set(n.value):
-                try: ch.encode('gbk')
-                except UnicodeEncodeError:
-                    print(p,n.lineno,hex(ord(ch))); break
-"
-# 上面的扫描应无输出。再**不设 PYTHONIOENCODING** 直接跑一次，看 exit code 是不是 0：
+python $S/scripts/check_console_encoding.py
+# 上面的命令应输出 [OK]。它只查**运行期字符串**（docstring 里的特殊符号不用管）。
+# 再**不设 PYTHONIOENCODING** 直接跑一次，看 exit code 是不是 0：
 #   不设 PYTHONIOENCODING=utf-8 python $S/scripts/check_setup.py ; echo $?
 # 人 terminals 里跑通不算数——终端是 UTF-8，只有管道会触发。
 

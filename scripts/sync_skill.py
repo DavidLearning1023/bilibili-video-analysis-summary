@@ -1,25 +1,35 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-源真源 → 部署副本 的同步工具（check / deploy / prune）
+源目录 → 各客户端副本 的同步工具（check / deploy / prune）
 
-为什么需要它
-------------
-本仓库（项目目录）才是**唯一真源**。各 Agent 客户端的 skills 目录里放的是**部署副本**，
-供客户端自动加载。两边会漂移——改了真源却忘了同步，Agent 读到的还是旧版规则。
+两种身份，两种用法
+------------------
+**使用者**（从 GitHub 装到 Agent 的 skills 目录，之后没再单独维护过一份）：
+    你的 skill 目录**就是唯一一份**，没有别的副本要同步。
+    本脚本会直接告诉你"无需同步"，**不需要你做任何操作**。
 
-所以规矩是：**用之前先查本地状态，有漂移先同步再干活。**
+**维护者**（项目仓库和 skill 安装位置是分开的：自己改仓库，或一个 skill 接多个 Agent）：
+    项目仓库是唯一的编辑目标，各客户端 skills 目录是**部署副本**。
+    改动真源后用 `--deploy` 送过去；动手前用 `--check` 看有没有漂移。
 
+    为什么不能从 GitHub 反向拉：Agent 直接接管项目文件夹后，
+    **本地项目目录才是最新的**（含还没提交的改动）。从 GitHub 同步会把
+    本地已做但未推送的改动**悄悄回滚掉**——典型的静默错误。
+
+用法
+----
     python scripts/sync_skill.py --check      # 只报告漂移，不写任何文件
-    python scripts/sync_skill.py --deploy     # 把真源同步到各部署副本
+    python scripts/sync_skill.py --deploy     # 把源目录同步到各客户端副本
     python scripts/sync_skill.py --deploy --prune   # 额外把"上游已删"的文件移入暂存区
+    python scripts/sync_skill.py --list       # 只列出识别到的目标
 
-必须**从项目仓库目录运行**（本脚本所在目录的上级是 git 仓库才算真源）。
-在部署副本里跑会被拒绝——部署副本不是真源，从它同步只会把旧版再复制一遍。
+    --source <目录>   指定真正的源目录（维护者场景可用）
+    --target <目录>   指定目标，可重复；可指向尚不存在的目录（首次部署）
 
 退出码
 ------
-    0 = 全部同步
+    0 = 全部同步 / 无需同步
     1 = 存在漂移（**不是错误**，输出里会写明该跑什么命令）
     2 = 参数或环境错误
 
@@ -27,11 +37,11 @@
 --------
 源文件清单 = `git ls-files --cached --others --exclude-standard`
 （受管文件 + 未被 .gitignore 忽略的未跟踪文件），自动排除
-`.git/` `__pycache__/` `*.pyc` 等噪声。
+`.git/` `__pycache__/` `*.pyc` 等噪声。**不是 git 仓库也能跑**（zip 安装无妨）。
 
 删除纪律
 --------
-`--prune` **不直接删文件**，而是移到真源同盘的一个暂存目录
+`--prune` **不直接删文件**，而是移到同盘的一个暂存目录
 （`<客户端根目录>/_deleted_skill-sync_<YYYYMMDD>/`）并写 `_MANIFEST.md`，
 由使用者把整个文件夹一次性放进回收站。**不做永久删除。**
 """
@@ -102,34 +112,18 @@ def source_files(src: pathlib.Path):
              "ls-files", "-z", "--cached", "--others", "--exclude-standard"],
             capture_output=True, check=True)
         names = [n for n in r.stdout.decode("utf-8", "replace").split("\0") if n]
-    except Exception as e:
-        print(f"[WARN] git ls-files 失败（{e}），改用目录遍历", file=sys.stderr)
+    except Exception:
+        pass
     if not names:
+        # 不是 git 仓库（zip 安装）→ 直接遍历目录
         names = [rel for rel, _ in walk_files(src)]
     return sorted({n.replace("\\", "/") for n in names if not excluded(n.replace("\\", "/"))})
 
 
-def discover_targets(explicit):
-    """返回 [(客户端名, 目标目录)]，只保留已存在的。"""
-    out = []
-    if explicit:
-        # 显式指定的目标**允许不存在**——首次部署到某个客户端时目录本来就是空的。
-        # 目录会在 --deploy 时被创建。
-        for p in explicit:
-            t = pathlib.Path(p).expanduser().absolute()
-            out.append(("指定目标", t))
-        return out
-
-    env = os.environ.get("BILI_SKILL_TARGETS", "")
-    for item in env.split(os.pathsep):
-        item = item.strip()
-        if not item:
-            continue
-        t = pathlib.Path(item).expanduser()
-        if t.exists():
-            out.append(("环境变量", t.absolute()))
-
+def client_skill_dirs():
+    """本机已存在的客户端 skills 目录（绝对路径）。"""
     home = pathlib.Path.home()
+    out = []
     for label, rel in CLIENT_SKILL_DIRS:
         t = home / rel / SKILL_NAME
         if t.exists():
@@ -137,8 +131,28 @@ def discover_targets(explicit):
     return out
 
 
+def discover_targets(explicit):
+    """返回 [(客户端名, 目标目录)]。"""
+    if explicit:
+        # 显式指定的目标**允许不存在**——首次部署时目录本来就是空的，
+        # 目录会在 --deploy 时被创建。
+        return [("指定目标", pathlib.Path(p).expanduser().absolute()) for p in explicit]
+
+    env = os.environ.get("BILI_SKILL_TARGETS", "")
+    out = []
+    for item in env.split(os.pathsep):
+        item = item.strip()
+        if not item:
+            continue
+        t = pathlib.Path(item).expanduser()
+        if t.exists():
+            out.append(("环境变量", t.absolute()))
+    out += client_skill_dirs()
+    return out
+
+
 def is_same_dir(a: pathlib.Path, b: pathlib.Path) -> bool:
-    """两个路径是不是同一个目录（含 junction / 符号链接指回真源的情况）。"""
+    """两个路径是不是同一个目录（含 junction / 符号链接指回同一处）。"""
     try:
         return os.path.samefile(str(a), str(b))
     except Exception:
@@ -162,6 +176,14 @@ def is_junction(p: pathlib.Path) -> bool:
         return False
 
 
+def is_installed_copy(src: pathlib.Path) -> bool:
+    """源目录是不是「装在某个客户端 skills 目录里的那一份」。"""
+    for _, t in client_skill_dirs():
+        if is_same_dir(src, t):
+            return True
+    return False
+
+
 def skill_name_of(root: pathlib.Path):
     """读 SKILL.md frontmatter 的 name:，用于校验目录名是否一致。"""
     p = root / "SKILL.md"
@@ -181,6 +203,7 @@ def skill_name_of(root: pathlib.Path):
 def diff_target(src: pathlib.Path, tgt: pathlib.Path, files):
     """返回 (缺失, 更新, 多余) 三个列表。"""
     missing, changed, extra = [], [], []
+    srcset = set(files)
     for rel in files:
         s = src / rel
         t = tgt / rel
@@ -191,7 +214,7 @@ def diff_target(src: pathlib.Path, tgt: pathlib.Path, files):
     for rel, _ in walk_files(tgt):
         if rel in ALLOWED_EXTRAS:
             continue
-        if rel not in set(files):
+        if rel not in srcset:
             extra.append(rel)
     return missing, changed, extra
 
@@ -230,8 +253,8 @@ def do_prune(tgt: pathlib.Path, extra, src: pathlib.Path):
     lines = [
         "# 删除清单 — skill 部署同步",
         "",
-        f"- 任务：把真源同步到部署副本时，清理「上游已删」的文件",
-        f"- 真源：{src}",
+        "- 任务：把源目录同步到部署副本时，清理「上游已删」的文件",
+        f"- 源目录：{src}",
         f"- 部署副本：{tgt}",
         f"- 日期：{date}",
         "",
@@ -250,7 +273,7 @@ def do_prune(tgt: pathlib.Path, extra, src: pathlib.Path):
 
 
 def write_state(src: pathlib.Path, tgt: pathlib.Path):
-    """在部署副本留一份状态戳：来自哪个真源、什么时候同步的。"""
+    """在部署副本留一份状态戳：来自哪个源、什么时候同步的。"""
     import json
     state = {
         "source": str(src),
@@ -266,10 +289,10 @@ def write_state(src: pathlib.Path, tgt: pathlib.Path):
 
 def main() -> int:
     ap = argparse.ArgumentParser(
-        description="源真源 → 部署副本 的同步检查与部署")
-    ap.add_argument("--source", help="真源目录（默认：本脚本所在的项目仓库根目录）")
+        description="源目录 → 各客户端副本 的同步检查与部署")
+    ap.add_argument("--source", help="源目录（默认：本脚本所在的项目目录）")
     ap.add_argument("--target", action="append",
-                    help="指定部署副本目录，可重复；不给则自动发现已知客户端")
+                    help="指定目标目录，可重复；不给则自动发现已装的客户端")
     ap.add_argument("--check", action="store_true", help="只检查，不写任何文件")
     ap.add_argument("--deploy", action="store_true", help="同步差异文件")
     ap.add_argument("--prune", action="store_true",
@@ -280,34 +303,27 @@ def main() -> int:
     if not (args.check or args.deploy or args.list):
         args.check = True
 
-    src = pathlib.Path(args.source).expanduser().resolve() if args.source else \
+    src = pathlib.Path(args.source).expanduser().absolute() if args.source else \
         pathlib.Path(__file__).resolve().parent.parent
 
     if not (src / "SKILL.md").exists():
-        print(f"[FAIL] 真源目录里没有 SKILL.md：{src}", file=sys.stderr)
-        return 2
-    if not (src / ".git").exists() and not args.source:
-        print("[FAIL] 本脚本要从**项目仓库目录**运行（真源）。", file=sys.stderr)
-        print(f"       当前目录没有 .git：{src}", file=sys.stderr)
-        print("       你多半是在部署副本里跑的。部署副本不是真源。", file=sys.stderr)
-        print("       正确做法：cd 到项目仓库目录再执行；或用 --source <真源路径>。", file=sys.stderr)
+        print(f"[FAIL] 目录里没有 SKILL.md：{src}", file=sys.stderr)
         return 2
 
     files = source_files(src)
     targets = discover_targets(args.target)
 
     print("=" * 62)
-    print("skill 部署同步检查")
+    print("skill 同步检查")
     print("=" * 62)
-    print(f"真源：{src}")
-    print(f"      （{len(files)} 个受管文件）")
+    print(f"源目录：{src}")
+    if not (src / ".git").exists():
+        print("        （不是 git 仓库——zip 安装无妨，不影响检查）")
+    print(f"        （{len(files)} 个文件）")
 
     if not targets:
-        print("\n[WARN] 没找到任何部署副本。")
-        print("       常见位置：")
-        for label, rel in CLIENT_SKILL_DIRS:
-            print(f"         {label:<14} ~/{rel}/{SKILL_NAME}")
-        print("       可用 --target <目录> 指定，或设环境变量 BILI_SKILL_TARGETS。")
+        print("\n[OK] 本机只找到这一份 skill，没有别的副本需要同步。")
+        print("      使用者看到这里就结束——你的 skill 就是最新的，不用做任何事。")
         return 0
 
     if args.list:
@@ -315,13 +331,23 @@ def main() -> int:
             print(f"  {label:<14} {tgt}")
         return 0
 
+    # 源目录本身就是"装在客户端 skills 目录里的那一份"
+    #   → 对使用者：这就是他的全部家当，没有别的副本要同步
+    #   → 对维护者：从副本往别处推是**反方向**，必须挡住
+    others = [(lb, t) for lb, t in targets if not is_same_dir(src, t)]
+    if others and is_installed_copy(src) and not args.source:
+        print("\n[SKIP] 你是在**已安装副本**里运行的这个脚本。")
+        print("       同步方向是 项目仓库 → 各客户端副本；从副本往别处推是反的。")
+        print("       正确做法：cd 到你的项目仓库目录再执行，或加 --source <项目仓库路径>。")
+        return 0
+
     print()
     drifted = 0
     for label, tgt in targets:
         if is_same_dir(src, tgt):
-            kind = "junction" if is_junction(tgt) else "同一目录"
+            kind = "junction" if is_junction(tgt) else "安装位置即源目录"
             print(f"  {label:<14} {tgt}")
-            print(f"                 [无需同步]  目标就是真源本身（{kind}）——读到的永远是最新版")
+            print(f"                 [无需同步]  目标就是源目录本身（{kind}）")
             continue
         name = skill_name_of(tgt)
         if name and name != tgt.name:
@@ -349,6 +375,15 @@ def main() -> int:
             print(f"                   - 多余  …另有 {len(extra) - 6} 个")
 
         if args.deploy and n:
+            # 安全闸：不能用一份"非仓库拷贝"覆盖一个"真正的开发副本"。
+            # 典型踩法：在 zip 下载的副本里跑 --deploy，结果把真源的未提交改动盖掉。
+            if not (src / ".git").exists() and (tgt / ".git").exists():
+                print(f"                 [拒绝] 源目录不是 git 仓库、目标是 git 仓库——"
+                      f"拒绝用拷贝覆盖开发副本")
+                print(f"                        （确认要覆盖请手动删除目标，或用 --source 指定真正的源）")
+                n = len(missing) + len(changed) + len(extra)
+                drifted += 1
+                continue
             tgt.mkdir(parents=True, exist_ok=True)
             copied = do_deploy(src, tgt, missing, changed)
             print(f"                 → 已同步 {copied} 个文件")
@@ -371,9 +406,9 @@ def main() -> int:
 
     print("-" * 62)
     if drifted == 0:
-        print("结论：所有部署副本都是最新的。")
+        print("结论：所有副本都是最新的。")
         return 0
-    print(f"结论：{drifted}/{len(targets)} 个部署副本需要同步。")
+    print(f"结论：{drifted}/{len(targets)} 个副本需要同步。")
     if not args.deploy:
         print("       → python scripts/sync_skill.py --deploy")
     return 1

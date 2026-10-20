@@ -5,6 +5,22 @@
 
 ---
 
+## 这是什么 / 不是什么
+
+| | 是什么 | 在哪 | 谁维护 |
+|---|---|---|---|
+| **本项目** | 一个 **Agent Skill**（`SKILL.md` 规范）：给 Agent 读的规则集 + 取数脚本 + 报告模板 | 装进 Agent 的 **skills 目录** | 本仓库（GitHub） |
+| **上游 MCP** | `@xzxzzx/bilibili-mcp@1.14.1`，**第三方**的 MCP 服务器 | 跑在 npm 缓存里，npx 启动 | 第三方作者 |
+| **本仓库的补丁** | 一套**可逆补丁**，修上游 MCP 已知的 3 个 bug | `assets/mcp-patch/` | 本项目 |
+
+**一句话**：**skill 是给 Agent 读的规则，MCP 是它可以调用的外部服务，补丁是让这个外部服务少犯错的工具链。**
+
+- 你装的是 **skill**（一个文件夹），**不是**一个 MCP server——别往 MCP 配置里填这个仓库的路径
+- **MCP 是可选增强**（字幕、关键词定位、章节、收藏夹），不装也能用
+- 本仓库**不包含** MCP 的代码，只有它的补丁
+
+---
+
 ## 它解决什么问题
 
 让 AI "总结一下这个视频"，你得到的大多是一份复述——把视频里的话换种说法再讲一遍，真假难辨、无法核对、看完还是不知道该信多少。
@@ -80,24 +96,30 @@ HTML 与 PDF 内容完全一致（PDF 由同一份 HTML 渲染，折叠区自动
 
 ## 安装
 
-**前置**：Python 3.9+（核心脚本只用标准库）；Node.js ≥ 20 与一个 B站账号（仅当要读字幕、用 MCP 通道时需要）。
+**前置**：Python 3.9+（核心脚本只用标准库）；Node.js ≥ 20 与一个 B站账号（**仅当**要读字幕、配 MCP 通道时需要）。
 
-**两层结构**：本仓库是**真源**（改这里）；各客户端的 skills 目录里放的是**部署副本**（脚本覆盖）。
+**装本体**（把 `<skills 目录>` 换成你客户端的位置：MiniMax Code `~/.minimax/skills/`、
+WorkBuddy `~/.workbuddy/skills/`、Claude Code `~/.claude/skills/`）：
 
 ```bash
-# ① 克隆真源到你自己的项目目录
 git clone https://github.com/DavidLearning1023/bilibili-video-analysis-summary.git \
-  ~/projects/bilibili-video-analysis-summary
-
-# ② 部署到各客户端（自动发现已装的客户端：MiniMax Code / WorkBuddy / Claude Code）
-cd ~/projects/bilibili-video-analysis-summary
-python scripts/sync_skill.py --deploy
+  <skills 目录>/bilibili-video-analysis-summary
 ```
 
-以后改完真源，用 `python scripts/sync_skill.py --check` 看漂移、`--deploy` 送出去。
-**方向永远是「本地真源 → 部署副本」，不从 GitHub 反向拉**——否则会把你还没推送的本地改动悄悄回滚掉。
+装完**重启或重连一次客户端**，然后直接发链接：
 
-**完整的分客户端安装对照、MCP 配置、补丁、自检流程见 [`INSTALL.md`](INSTALL.md)**。
+```
+帮我分析总结这个 B站视频：https://www.bilibili.com/video/BVxxxxxxxxxx
+```
+
+更新就 `git pull`（zip 用户重新下载覆盖）。**使用者不需要做任何额外配置。**
+
+> **维护者**（要改这份 skill 的人）：把仓库克隆到**单独的项目目录**当作真源，
+> 再用 `scripts/sync_skill.py --deploy` 送到各客户端，或用 junction / 符号链接让客户端直连真源
+> （零漂移）。**方向永远是「本地真源 → 部署副本」，不从 GitHub 反向拉**——
+> 否则会把你还没推送的本地改动悄悄回滚掉。详见 [`INSTALL.md`](INSTALL.md) 第三节。
+>
+> **完整的分客户端安装对照、MCP 配置、补丁、自检流程见 [`INSTALL.md`](INSTALL.md)**。
 
 > **推荐配置 MCP 通道**（字幕扫码登录、关键词定位、章节等附加能力，配一次全程受益；配套补丁已随仓库备好）；
 > 不装也能跑——`scripts/fetch_video.py` 自成兜底（元数据 + 评论无需登录），只是拿不到字幕。
@@ -183,6 +205,22 @@ Agent 会自己完成：判断视频类型 → 取元数据/字幕/评论 → �
 - 以上的完整清单与验证记录，都在 `references/troubleshooting.md`、`references/lessons.md` 与 `references/CHANGELOG.md` 里
 
 ## 常见问题
+
+**Q：怎么更新到新版本？**
+在 skill 目录里 `git pull`（zip 用户重新下载覆盖）。如果还配了 MCP 通道，顺手重跑一次
+`scripts/check_setup.py`，确认补丁和登录态都还在。
+
+**Q：改了仓库里的文件，客户端却没生效？**
+（这是**维护者**场景：你的 skill 目录不是项目仓库本身。）改了真源要送过去：
+
+```bash
+cd <项目仓库目录>
+python scripts/sync_skill.py --check     # 看漂移
+python scripts/sync_skill.py --deploy    # 同步
+```
+
+同步后重启/重连一次客户端，让它重新加载 skill。**别从 GitHub 反向拉**——那会回滚掉你还没推送的本地改动。
+如果你的 skill 目录是用 junction / 符号链接直连项目目录的，就**没有这个问题**，改完立刻生效。
 
 **Q：一定要装 MCP 吗？**
 不。`scripts/fetch_video.py` 是自包含的取数主力（仅标准库）：元数据 + 评论 + **评论图片及其统计**都能拿，无需登录。装了 MCP 多出的是：字幕扫码登录更省事、关键词定位、章节、收藏夹。

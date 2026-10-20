@@ -306,6 +306,10 @@ python scripts/fetch_comment_media.py BVxxx --comments 100
 1. **装完必须打补丁再重启客户端**——补丁在 `assets/mcp-patch/`，不打补丁大概率先遇到 §1 的 412；打完不重启不会生效（运行中的 MCP 进程不热加载）。
 2. **MCP 配置里的 `command` 在 Windows 下用 `npx.cmd`**，避开 PowerShell 的 `.ps1` 执行策略坑；版本**建议 pin 死**，不用 `@latest`（每次启动都要查 npm registry，网络抖动时可能起不来，且行为随作者发版变化）。
 3. **不装 MCP 也能用**——只靠 `scripts/fetch_video.py` 就能完成"元数据 + 评论"分析（无需登录），只是拿不到字幕。
+4. **zip 安装没有 `.git` 是正常的**——`scripts/sync_skill.py` 不依赖 git 仓库也能跑（会自动改用目录遍历），自检、补丁、取数全部照常。
+5. **补丁莫名其妙失效**——npm 有时会重新下载包，**覆盖掉你打过的补丁**。重跑 `python assets/mcp-patch/apply-patch.py` 即可；`check_setup.py` 每次都会替你检查（报「未应用」就是丢了）。
+6. **补丁提示「版本不符」**——上游 MCP 升级了，本仓库的补丁是 **1.14.1 的专用快照**，不能直接套到新版本上。两条路：① 先走最简路径（`fetch_video.py` 不依赖补丁），等仓库适配新版本；② 见 `references/maintenance.md` 第四节自己重新适配。
+7. **多个客户端都装了、想一起更新**——它们是各自独立副本：在每个目录各 `git pull` 一次即可。若你是上游维护者（项目仓库与安装位置分开），用 `python scripts/sync_skill.py --deploy` 一次送到所有客户端。
 
 ## 最简路径（不装 MCP）
 
