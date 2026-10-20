@@ -539,7 +539,7 @@ def main():
             print(f"[OK] 顶层 {st['n_top']} 条 + 楼中楼 {st['n_replies']} 条；"
                   f"按前 {st['judge_depth']} 条算，图片评论 {st['with_picture']} 条"
                   f"（{st['picture_share']}%），占样本赞量 {st['picture_like_share']}%"
-                  f" ⇒ 判读：{st['picture_verdict']}",
+                  f" → 判读：{st['picture_verdict']}",
                   file=sys.stderr)
             print(f"[OK] 等级分布（条数）：{st['level_count']}　（赞占比）：{st['level_like_share']}",
                   file=sys.stderr)

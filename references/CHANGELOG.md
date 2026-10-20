@@ -5,6 +5,81 @@
 
 ---
 
+## 2026-10-20 · 换掉「从 GitHub 拉」的同步模型：真源 → 部署副本；并清掉硬编码的解释器路径
+
+**类型**：架构调整 + 缺陷修复
+
+**改了什么**
+
+| 文件 | 改动 |
+|---|---|
+| `scripts/sync_skill.py` | **新增**。真源 → 部署副本的漂移检查与同步。`--check`（只报告）/ `--deploy`（同步）/ `--prune`（把「上游已删」的文件移入暂存区并写 `_MANIFEST.md`，**不做永久删除**）/ `--list`。自动发现 `~/.minimax/skills`、`~/.workbuddy/skills`、`~/.claude/skills`，也可用 `--target` / `BILI_SKILL_TARGETS` 指定。按 **SHA256 逐文件**比对，源清单用 `git ls-files --cached --others --exclude-standard` |
+| `scripts/fetch_comment_media.py` | ① **解释器路径不再硬编码**：PIL 缺失时自动在本机找一个带 PIL 的解释器并用它重跑自己（`BILI_PYTHON` 可显式指定）；② **`_need_pil()` 之前定义了却从没被调用**——所谓"给出友好提示"是死代码，实际是**图全下完之后**才抛原始 `ModuleNotFoundError`。现接到 `main()` 最前面 |
+| `SKILL.md` | 新增**第 0 步：先看本地状态**（`sync_skill.py --check`）；硬规则加第 14 条「先同步再使用」；文件地图与维护指引补 `sync_skill.py`；C-1 的 PIL 说明改为自动探测 |
+| `references/maintenance.md` | 新增「〇、源真源与部署模型」——两层结构、固定动作、两种接法（junction / 拷贝）、各情况处置 |
+| `references/troubleshooting.md` | §6 ② PIL 改写为自动探测的实际行为，并记录 2026-10-20 之前的行为（含那个死代码） |
+| `INSTALL.md` / `README.md` | 安装模型从"放置"改为"真源 + 部署"；新增方式 B（junction 直连）；客户端表补 **MiniMax Code**；新增「每次用之前先查漂移」 |
+| `scripts/check_setup.py` | 结论行的 `✅` → `[OK]`（见下「顺带修掉的一类 GBK 崩溃」） |
+| `assets/mcp-patch/apply-patch.py` | `⚠️` → `[注意]`；状态串 `"未知⚠"` → `"未知!"` |
+| `scripts/fetch_video.py` | 判读行的 `⇒` → `→` |
+
+### 顺带修掉的一类 GBK 崩溃（不止 `check_setup.py`）
+
+**病因**：Windows 下 Python 的 stdout **被管道接走时用系统 ANSI 代码页（cp936/GBK）**，
+不是控制台代码页——本机 `chcp` 明明是 65001，`sys.stdout.encoding` 却是 `gbk`。
+GBK 编不了 `✅`（U+2705）、`⚠`（U+26A0）、`⇒`（U+21D2）这些字符，
+**一旦 print 出去就抛 `UnicodeEncodeError`，进程以 exit 1 结束**——
+而此时它报的往往是一条**假失败**（检查全过、补丁已打成功、数据已取到）。
+
+**修法**：全部换成 GBK 能编的等价写法（`✅`→`[OK]`、`⚠️`→`[注意]`、`⇒`→`→`）。
+
+**怎么找出来的**：写了个一次性 AST 审计脚本，扫出**所有运行期字符串常量**里 GBK 编不了的字符
+（不止 `print()` 的字面量，还包括"先赋值、后面才打印"的间接路径），
+再按 DIRECT-PRINT / indirect 分类。命中 4 处，其中 3 处是**真会炸的**：
+
+| 位置 | 后果 |
+|---|---|
+| `check_setup.py:141` | 自检全 `[OK]` 却 exit 1 → Agent 误判自检失败，去查一个不存在的故障 |
+| `apply-patch.py:145` | **补丁刚打成功**，紧接着的"请重启客户端"提示打不出来，且 exit 1 → 最该看到的一句话没了 |
+| `apply-patch.py:102` | 文件状态判为"未知"时（既非 pristine 也非 patched，正是最需要诊断的时刻）直接崩 |
+| `fetch_video.py:541` | **主取数脚本**在判读行崩 → 数据其实取到了，但脚本以 exit 1 结束 |
+
+> ⚠️ 这一类 bug 的隐蔽之处：**它只在"输出被管道接走"时发作**——
+> 人在终端里直接跑往往完全正常（控制台是 UTF-8），Agent 跑就炸。
+> 所以"我本地跑过没问题"不能作为证据，必须**在管道下验证 exit code**。
+
+**验证方式**（复检时用的就是它）：**不设 `PYTHONIOENCODING`** 直接跑脚本，检查 exit code 为 0。
+
+**为什么**
+
+1. **同步方向反了**。Agent 直接接管项目文件夹后，**本地项目目录才是最新的**（含还没提交的改动）。
+   从 GitHub 同步会把本地已做但未推送的改动**悄悄回滚掉**——典型的静默错误。
+   方向必须反过来：**真源（项目目录）→ 部署副本（各客户端 skills 目录）**。
+2. **硬编码的本机绝对路径有三处**（`SKILL.md` / `fetch_comment_media.py` / `troubleshooting.md`），
+   指向的是 workbuddy 那个 venv 里的解释器。换个客户端、换台机器就断——
+   而 `SKILL.md` 自己在末尾就写着"**不要硬编码任何本机路径**"。自相矛盾。
+3. 顺带发现一个**死代码**：`_need_pil()` 从没被调用，"import 失败给友好提示"是假的。
+
+**怎么验证的**
+
+| 用例 | 结果 |
+|---|---|
+| `sync_skill.py --check`（改造前，MiniMax Code 侧是拷贝） | 正确报出「缺失 1 / 更新 6 / 多余 0」，退出码 1 |
+| `sync_skill.py --check`（改造后，两侧都是 junction） | 两侧均显示「[无需同步] 目标就是真源本身（junction）」，退出码 0 |
+| MCode skill 加载器穿过 junction | `skill` 工具解析到 `files:///D:/bilibili-video-analysis-summary/SKILL.md`，读到的是**新规则**（第 0 步 / 硬规则 14 / PIL 自动探测均在） |
+| `fetch_comment_media.py` 用**无 PIL** 的解释器跑（3.14 venv，无 Pillow） | 自动换到带 PIL 的解释器重跑，输出**不重复**，联系表正常生成（2 张图 → `sheet_01.jpg` 60 KB + `manifest.md`） |
+| `fetch_comment_media.py` 用有 PIL 的解释器跑 | 无 INFO 行，直接跑通，行为不变 |
+| `check_setup.py` | 5 项全 `[OK]`（补丁 3/3、凭据有效至 2026-11-16、API 200），exit 0 |
+
+**遗留**
+
+- 部署副本若是普通拷贝且自带 `.git`（WorkBuddy 侧早期就是），同步后其 git 状态会显示 modified。属正常——真源才是权威。
+- **GBK 那类问题的复发风险仍在**：以后往脚本里加 emoji / 特殊符号（比如 `❌`、`→` 之外的箭头变体），
+  同样会在管道下崩。已把审计方法写进 `references/maintenance.md` 的验证清单，但**没有做成常驻脚本**——
+  需要时按该节的方法跑一次 AST 扫描。
+
+---
+
 ## 2026-10-19 深夜 · 推送前审查：修掉 9 个问题，其中 3 个会静默出错
 
 **类型**：代码审查 + 缺陷修复（不是新功能）

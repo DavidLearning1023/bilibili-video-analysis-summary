@@ -4,6 +4,55 @@
 
 ---
 
+## 〇、源真源与部署模型（**先读这段，它决定你改哪里**）
+
+```
+真源      项目仓库目录（Agent 的工作区，git 仓库）      ← 改这里
+             │  scripts/sync_skill.py --deploy
+             ↓
+部署副本   ~/.minimax/skills/<name>/     MiniMax Code 读这里
+           ~/.workbuddy/skills/<name>/    WorkBuddy 读这里
+           ~/.claude/skills/<name>/       Claude Code 读这里
+```
+
+| | 是什么 | 改不改 |
+|---|---|---|
+| **真源** | 项目仓库目录，git 仓库，有 GitHub 远端 | **唯一的编辑目标**。所有改动先落这里 |
+| **部署副本** | 各客户端 skills 目录下的同名文件夹 | **只读**，由 `sync_skill.py --deploy` 覆盖 |
+
+**为什么不再从 GitHub 拉**：Agent 直接接管项目文件夹，**本地状态才是最新的**（含还没提交的改动）。
+从 GitHub 同步会把本地已做但未推送的改动**悄悄回滚掉**。所以方向永远是**本地 → 副本**。
+
+**固定动作**：
+
+```bash
+python scripts/sync_skill.py --check     # 动手前：看有没有漂移
+python scripts/sync_skill.py --deploy    # 收尾后：把改动送到各客户端
+```
+
+| 情况 | 怎么办 |
+|---|---|
+| `--check` 退出码 1 | 有漂移 → 跑 `--deploy`，然后**重读 SKILL.md**（旧规则会做出相反动作） |
+| `--check` 说「目标就是真源本身」 | 目标是指向真源的 **junction/符号链接**，结构上不可能漂移，不用管 |
+| `--deploy` 报「上游已删」的文件 | 加 `--prune`：移到 `<客户端根>/_deleted_skill-sync_<日期>/` 并写 `_MANIFEST.md`，**由用户把整个文件夹放进回收站**（不做永久删除） |
+| 在部署副本里跑这个脚本 | 会被拒绝（副本不是真源）。`cd` 回项目目录，或加 `--source <真源路径>` |
+| 部署副本自带 `.git` | 脚本不动它。它的 git 状态会显示 modified，属正常——**真源才是权威** |
+
+**两种接法，都支持：**
+
+| 接法 | 怎么来的 | 特点 |
+|---|---|---|
+| **junction / 符号链接** | `New-Item -ItemType Junction -Path <skills>\<name> -Target <真源>` | 客户端读到的**就是真源本身**，**结构上不可能漂移**，改动即时生效。Windows 限定 |
+| **普通拷贝** | `sync_skill.py --deploy` 复制 | 跨平台通用，但要靠 `--check` 保证不落后 |
+
+> 同一个 skill 在不同客户端上可以混用两种接法——脚本会逐个识别并给出对应结论。
+
+**同步的粒度是文件内容（SHA256），不是 git 提交。** 所以真源改了但还没提交，照样能同步过去。
+源文件清单 = `git ls-files --cached --others --exclude-standard`（受管文件 + 未被忽略的未跟踪文件），
+自动排除 `.git/` `__pycache__/` `*.pyc`。
+
+---
+
 ## 一、日常自检（最先做的一件事）
 
 ```bash
@@ -106,7 +155,25 @@ python $S/scripts/check_setup.py
 # 4) 取数脚本冒烟测试（改了 fetch_video.py 才需要）
 python $S/scripts/fetch_video.py BV1r2ey6EEh5 --comments 20 --out /tmp/skilltest
 
-# 5) 打包校验
+# 5) **GBK 崩溃扫描 + 管道下验证 exit code**（改了任何 print 之后必做）
+#    Windows 下 stdout 被管道接走时用系统 ANSI 代码页 GBK（不是 chcp 的 65001），
+#    编不了 ✅ ⚠ ⇒ 等字符 → 抛 UnicodeEncodeError → 脚本"假失败"（exit 1 但活儿早干完了）
+python -c "
+import ast,pathlib
+for p in list(pathlib.Path('scripts').rglob('*.py'))+list(pathlib.Path('assets').rglob('*.py')):
+    t=ast.parse(p.read_text(encoding='utf-8'))
+    for n in ast.walk(t):
+        if isinstance(n,ast.Constant) and isinstance(n.value,str):
+            for ch in set(n.value):
+                try: ch.encode('gbk')
+                except UnicodeEncodeError:
+                    print(p,n.lineno,hex(ord(ch))); break
+"
+# 上面的扫描应无输出。再**不设 PYTHONIOENCODING** 直接跑一次，看 exit code 是不是 0：
+#   不设 PYTHONIOENCODING=utf-8 python $S/scripts/check_setup.py ; echo $?
+# 人 terminals 里跑通不算数——终端是 UTF-8，只有管道会触发。
+
+# 6) 打包校验
 python <skill-creator>/scripts/package_skill.py $S <输出目录>
 ```
 

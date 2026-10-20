@@ -214,16 +214,26 @@ python scripts/fetch_media.py BVxxx --video 1080 --out ./m --force    # 怀疑�
 
 ### ② `fetch_comment_media.py` 报 `ModuleNotFoundError: No module named 'PIL'`
 
-**病因**：PIL 只装在 `envs/default`，主受管环境（3.13.12）没有。
+**病因**：PIL 没装在当前解释器里。**多数情况下你不用管**——脚本会自己找一个带 PIL 的解释器重跑。
 
-**做法**：
+**现在的行为**（2026-10-20 改）：脚本在**最开始**就检查 PIL。找不到就自动换解释器，
+在 stderr 打印一行 `[INFO] 当前解释器没有 PIL，改用 <路径> 重跑`，然后用那个解释器完整跑完。
+你只会看到多一行 INFO，结果照常产出。
+
+**仍然失败时**（本机确实没有装 PIL 的解释器），脚本会列出候选与验证命令：
 
 ```bash
-"C:\Users\DavidHui\.workbuddy\binaries\python\envs\default\Scripts\python.exe" \
-  scripts/fetch_comment_media.py BVxxx --comments 100
+# 看候选里哪个有 PIL
+<候选解释器> -c "import PIL; print(PIL.__version__)"
+
+# 或直接指定用哪个解释器
+set BILI_PYTHON=<解释器路径>
+python scripts/fetch_comment_media.py BVxxx --comments 100
 ```
 
-这个 venv 同时也是 playwright 所在的环境（PDF 渲染也走它）。
+> ⚠️ **2026-10-20 之前**：解释器路径被硬编码在源码里（`...\.workbuddy\binaries\python\envs\default\...`），
+> 换个客户端/换台机器就断；而且那个 `_need_pil()` **定义了却从没被调用**——
+> 所谓"给出友好提示"是死代码，实际是**图全下完之后**才抛原始 `ModuleNotFoundError`。现已一并修掉。
 
 ### ③ 弹幕接口 412 / XML 解析报 `not well-formed (invalid token): line 1, column 0`
 

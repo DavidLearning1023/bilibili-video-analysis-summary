@@ -138,7 +138,7 @@ def main():
     if warns:
         print(f"结论：可用，但有 {len(warns)} 项提示（标 [WARN]）。")
         return 0
-    print("结论：全部就绪 ✅")
+    print("结论：全部就绪 [OK]")
     return 0
 
 

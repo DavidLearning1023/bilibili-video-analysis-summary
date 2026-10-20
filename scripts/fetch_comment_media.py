@@ -39,9 +39,12 @@ B站评论接口一直在返回 `content.pictures`，但两条通道的归一化
 
 依赖
 ----
-PIL。**主受管环境没装**，要用：
-    C:\\Users\\DavidHui\\.workbuddy\\binaries\\python\\envs\\default\\Scripts\\python.exe
-脚本会在 import 失败时直接给出这条提示，不会静默跳过。
+PIL（Pillow）。**不写死任何解释器路径**——每个用户机器上的 Python 都不一样。
+
+本脚本在 import 失败时会**自动在本机找一个带 PIL 的解释器，并用那个解释器重跑自己**；
+真的找不到才报错，且会列出候选解释器与验证命令，不会静默跳过。
+
+要指定用哪个解释器：设环境变量 `BILI_PYTHON=<解释器路径>`。
 """
 
 import argparse
@@ -50,6 +53,8 @@ import json
 import os
 import pathlib
 import re
+import shutil
+import subprocess
 import sys
 import time
 import urllib.parse
@@ -71,15 +76,85 @@ _FONT_CANDIDATES = [
 ]
 
 
+def _interp_candidates():
+    """候选解释器：BILI_PYTHON 环境变量 → 常见受管 venv → PATH 上的 python。
+
+    不写死绝对路径：换机器、换客户端都还能用。
+    """
+    cands = []
+    env = os.environ.get("BILI_PYTHON")
+    if env:
+        cands.append(env)
+    home = pathlib.Path.home()
+    for pat in ("workbuddy/binaries/python/envs/*/Scripts/python.exe",
+                ".workbuddy/binaries/python/envs/*/Scripts/python.exe",
+                ".local/bin/python*"):
+        try:
+            cands += [str(p) for p in sorted(home.glob(pat))]
+        except Exception:
+            pass
+    for name in ("python", "python3"):
+        w = shutil.which(name)
+        if w:
+            cands.append(w)
+    out, seen = [], set()
+    for c in cands:
+        try:
+            key = os.path.normcase(os.path.abspath(c))
+        except Exception:
+            continue
+        if key in seen or not os.path.isfile(c):
+            continue
+        seen.add(key)
+        out.append(c)
+    return out
+
+
+def _interp_has_pil(interp):
+    try:
+        r = subprocess.run([interp, "-c", "import PIL"], capture_output=True, timeout=25)
+        return r.returncode == 0
+    except Exception:
+        return False
+
+
 def _need_pil():
     try:
         from PIL import Image, ImageDraw, ImageFont  # noqa: F401
         return True
     except ImportError:
-        print("[FAIL] 缺少 PIL。本机请用装了 Pillow 的解释器：\n"
-              "  C:\\Users\\DavidHui\\.workbuddy\\binaries\\python\\envs\\default\\Scripts\\python.exe",
-              file=sys.stderr)
-        return False
+        pass
+    # 换一个带 PIL 的解释器重跑自己（用环境变量防止无限递归）
+    if os.environ.get("BILI_PIL_REEXEC") != "1":
+        try:
+            self_key = os.path.normcase(os.path.abspath(sys.executable))
+        except Exception:
+            self_key = ""
+        for interp in _interp_candidates():
+            try:
+                if os.path.normcase(os.path.abspath(interp)) == self_key:
+                    continue
+            except Exception:
+                continue
+            if _interp_has_pil(interp):
+                print(f"[INFO] 当前解释器没有 PIL，改用 {interp} 重跑", file=sys.stderr)
+                env = dict(os.environ)
+                env["BILI_PIL_REEXEC"] = "1"
+                try:
+                    rc = subprocess.call([interp, os.path.abspath(__file__)] + sys.argv[1:],
+                                         env=env)
+                except Exception as e:
+                    print(f"[FAIL] 换解释器失败：{e}", file=sys.stderr)
+                    return False
+                sys.exit(rc)
+    print("[FAIL] 缺少 PIL（Pillow），联系表无法生成。", file=sys.stderr)
+    print("       候选解释器：", file=sys.stderr)
+    for c in _interp_candidates():
+        mark = "  [有 PIL]" if _interp_has_pil(c) else ""
+        print(f"         {c}{mark}", file=sys.stderr)
+    print('       验证命令：<解释器> -c "import PIL; print(PIL.__version__)"', file=sys.stderr)
+    print("       指定解释器：set BILI_PYTHON=<解释器路径>", file=sys.stderr)
+    return False
 
 
 def _clean(m):
@@ -223,6 +298,11 @@ def main():
 
     if not args.video and not args.json:
         print("[FAIL] 至少要给 `video`（BV号/URL）或 `--json`（已有取数结果）之一", file=sys.stderr)
+        return 2
+
+    # 联系表需要 PIL。**放在最前面确认**：缺 PIL 时本函数会自动换一个带 PIL 的解释器
+    # 重跑自己；若等打印完前半段才检查，重跑后会出现重复输出。
+    if not _need_pil():
         return 2
 
     bvid = None

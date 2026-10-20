@@ -99,7 +99,7 @@ def main() -> int:
             elif h == rec.get("pristine_sha256"):
                 state = "原始"
             else:
-                state = "未知⚠"
+                state = "未知!"
             print(f"{rel:40s} {state:10s} {cur.stat().st_size} B")
         return 0
 
@@ -142,7 +142,7 @@ def main() -> int:
     print()
     print(f"完成：应用 {n} 个，跳过 {skipped} 个（已是补丁状态）")
     if n:
-        print("⚠️  需要重启 / 重连客户端，运行中的 MCP 进程才会加载新代码")
+        print("[注意]  需要重启 / 重连客户端，运行中的 MCP 进程才会加载新代码")
     return 0
 
 

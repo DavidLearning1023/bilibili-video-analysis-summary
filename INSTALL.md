@@ -16,26 +16,88 @@
 
 ## 二、放置 skill（第一步）
 
-把整个仓库目录放进你所用的 Agent 的 skills 目录：
+> **先搞清两层结构**（这是 2026-10-20 起的模型）：
+>
+> | | 在哪 | 谁写它 |
+> |---|---|---|
+> | **真源** | 项目仓库目录（git 仓库） | **你 / Agent**，所有改动落这里 |
+> | **部署副本** | 客户端的 skills 目录 | **脚本覆盖**，你不要手改 |
+>
+> 客户端读的是**部署副本**。两层内容不一致时，客户端读到的是旧规则——所以要用同步工具。
 
-| 客户端 | skills 目录 |
+### 方式 A：真源 + 部署（推荐）
+
+```bash
+# ① 克隆到你的项目目录
+git clone https://github.com/DavidLearning1023/bilibili-video-analysis-summary.git \
+  ~/projects/bilibili-video-analysis-summary
+
+# ② 部署到各客户端的 skills 目录（自动发现已装的客户端）
+cd ~/projects/bilibili-video-analysis-summary
+python scripts/sync_skill.py --deploy
+```
+
+`sync_skill.py` 会自动找到本机已存在的客户端 skills 目录并同步过去：
+
+| 客户端 | 部署位置 |
 |---|---|
-| **WorkBuddy** | `~/.workbuddy/skills/` |
-| **Claude Code** | `~/.claude/skills/` |
-| 其他 | 见对应客户端文档（即"技能 / Skills"的存放目录） |
+| **MiniMax Code** | `~/.minimax/skills/bilibili-video-analysis-summary` |
+| **WorkBuddy** | `~/.workbuddy/skills/bilibili-video-analysis-summary` |
+| **Claude Code** | `~/.claude/skills/bilibili-video-analysis-summary` |
+| 其他 | 见对应客户端文档（把 `<name>` 换成实际目录名即可） |
 
-> Windows 下 `~` 即 `C:\Users\<你的用户名>`；macOS / Linux 同理。
+手动指定某一个目标：`python scripts/sync_skill.py --deploy --target <目录>`。
 
-**方式 A：git clone（推荐，后续一条命令即可更新）**
+> **为什么不用 `git pull` 直接更到客户端目录**：Agent 直接接管项目文件夹，**本地状态才是最新的**
+> （含还没提交的改动）。从 GitHub 拉会把本地已做但未推送的改动**悄悄回滚掉**。
+> 方向永远是 **本地真源 → 部署副本**。
+>
+> 同步的粒度是**文件内容**（SHA256），不是 git 提交——真源改了没提交也能同步过去。
+
+### 方式 B：junction 直连（Windows · 零漂移）
+
+让客户端的 skills 目录**直接指向真源**，客户端读到的就是项目目录本体——**结构上不可能漂移**，
+改了立刻生效，连同步都省了：
+
+```powershell
+New-Item -ItemType Junction `
+  -Path "$env:USERPROFILE\.minimax\skills\bilibili-video-analysis-summary" `
+  -Target "$env:USERPROFILE\projects\bilibili-video-analysis-summary"
+```
+
+每个客户端做一次即可。`sync_skill.py --check` 会识别出这种接法并显示
+`[无需同步] 目标就是真源本身`。
+
+> 两种接法**可以混用**——同一个 skill 在 MiniMax Code 用 junction、在别的客户端用拷贝都行，
+> 脚本会逐个识别。junction 是 Windows 限定；macOS / Linux 用 `ln -s`。
+>
+> ⚠️ junction 的代价：真源目录一旦移动或改名，链接就断（重建即可）。
+
+### 方式 B：只要副本（不想管仓库）
 
 ```bash
 git clone https://github.com/DavidLearning1023/bilibili-video-analysis-summary.git \
-  ~/.workbuddy/skills/bilibili-video-analysis-summary
+  ~/.minimax/skills/bilibili-video-analysis-summary
+# Claude Code 用户改放 ~/.claude/skills/，macOS / Linux 同理
 ```
 
-**方式 B：下载 zip**，解压后把整个文件夹放进上面的目录。
+这种装法**只能读、不能改**——要改就改真源，再 `sync_skill.py --deploy` 送过去。
 
 放置完成后**重启或重连一次客户端**，让它扫描到新 skill。之后在对话里发一个 B站链接，看看是否触发。
+
+## 二之二、每次用之前：先查漂移
+
+```bash
+cd <项目仓库目录>
+python scripts/sync_skill.py --check
+```
+
+| 输出 | 含义 | 动作 |
+|---|---|---|
+| `[已同步]` | 副本是最新的 | 继续 |
+| `[需要同步]` + 退出码 1 | 真源有改动没送过去 | 跑 `--deploy`，然后重读 SKILL.md |
+
+> 退出码 1 表示**发现漂移**，不是脚本出错。
 
 ## 三、配置 MCP 通道（第二步 · 推荐）
 
@@ -156,12 +218,16 @@ python <skill 目录>/scripts/fetch_media.py BV1r2ey6EEh5 --video 1080 --out ./m
 
 ## 七、更新 / 卸载
 
-**更新**（方式 A 安装的）：
+**更新**（真源有改动后）：
 
 ```bash
-cd <skill 目录> && git pull
+cd <项目仓库目录>
+python scripts/sync_skill.py --check      # 先看漂移
+python scripts/sync_skill.py --deploy     # 再同步到各客户端
 ```
 
-更新后若改了 `scripts/` 或 `assets/`，重跑一次自检即可；若上游 MCP 包有升级，见 `references/maintenance.md` 第四节。
+改了 `scripts/` 或 `assets/` 的，同步后重跑一次 `check_setup.py`；
+若上游 MCP 包有升级，见 `references/maintenance.md` 第四节。
 
-**卸载**：删除 skill 目录；补丁可先还原再删（`python assets/mcp-patch/apply-patch.py --revert`）。
+**卸载**：删除各客户端 skills 目录下的同名文件夹；补丁可先还原再删
+（`python assets/mcp-patch/apply-patch.py --revert`）。

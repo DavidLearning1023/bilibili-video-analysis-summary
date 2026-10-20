@@ -85,8 +85,8 @@ python scripts/fetch_comment_media.py BV1Vkag6TExf --comments 100
 python scripts/fetch_comment_media.py --json ./out/BV1Vkag6TExf.json
 ```
 
-**依赖 PIL，主受管环境没装**，必须用
-`C:\Users\DavidHui\.workbuddy\binaries\python\envs\default\Scripts\python.exe`（同 playwright 那个 venv）。
+**依赖 PIL，但脚本不写死解释器路径**——import 失败时它会自动在本机找一个带 PIL 的解释器并用它重跑自己；
+真的找不到才报错，并列出候选解释器与验证命令。要指定用哪个：设 `BILI_PYTHON=<解释器路径>`。
 
 **判据：图片评论占样本赞量**（不是条数占比），取数即得、零成本：
 
@@ -221,6 +221,40 @@ python scripts/fetch_media.py BV11fJX6GEcL --video 1080 --force    # 怀疑旧�
 > ⚠️ **`content` 为空不代表它是垃圾评论**：纯图片评论的 `content` 就是空字符串，看 `pictures` 是否非空。2026-10-19 之前这里被当成噪声整条丢掉了。
 
 ## 标准流程
+
+### 第 0 步：先看本地状态（**每次动手之前**）
+
+**这个 skill 有两层，别搞混：**
+
+```
+真源      项目仓库目录（本 skill 的源，改这里）   ← Agent 的工作区
+             │  scripts/sync_skill.py --deploy
+             ↓
+部署副本   ~/.minimax/skills/<name>/     MiniMax Code 读这里
+           ~/.workbuddy/skills/<name>/    WorkBuddy 读这里
+```
+
+**规矩：先查漂移，有漂移先同步，再干活。**
+
+```bash
+python scripts/sync_skill.py --check     # 报告漂移；退出码 1 = 有漂移（不是脚本出错）
+python scripts/sync_skill.py --deploy    # 同步差异文件
+```
+
+`--check` 返回 1 是「发现漂移」，不是失败。看到就接着跑 `--deploy`，然后**重新读本文件的最新规则**。
+
+**两种接法，脚本都认：**
+
+| 目标形态 | `--check` 输出 | 含义 |
+|---|---|---|
+| **junction / 符号链接**直指真源 | `[无需同步] 目标就是真源本身` | 读到的永远是最新版，**结构上不可能漂移** |
+| **普通拷贝** | `[需要同步] 缺失 N / 更新 M` | 副本落后了，先 `--deploy` |
+
+> ⚠️ 脚本必须**从项目仓库目录运行**（真源）。在部署副本里跑会被拒绝——部署副本不是真源，
+> 从它同步只会把旧版再复制一遍。
+>
+> ⚠️ 两边漂移了却直接用，读到的是**旧规则**，会做出与最新设计相反的动作。
+> 这是**静默错误**，和「丢评论图片字段」一个性质——不会报错，只会做错。
 
 ### 第 1 步：确认前置条件
 
@@ -610,6 +644,7 @@ python scripts/check_pdf.py report.pdf --images 2
 11. **「建议任务名」要说两次**——取到元数据后的第一条消息第一行，以及最终回复的第一行，格式 `建议任务名：{YYYYMMDD}-《{视频原始标题}》`。原因见第 2 步。
 12. **数字与结论只认原图**——评论图片的联系表、视频抽帧的联系表，都只用于"分类与选片"，不能用来读数。凡"有没有越线 / 打码 / 具体数字"一律回原图。
 13. **MCP 拿不到评论图片**——涉及评论区图像时必须走 `fetch_comment_media.py`，不要指望 MCP 的 `get_video_comments`。
+14. **先同步再使用**——本 skill 分「真源（项目目录）」与「部署副本（各客户端 skills 目录）」两层。每次动手前跑 `python scripts/sync_skill.py --check`；有漂移先 `--deploy` 再继续。**在部署副本里跑这个脚本会被拒绝**——那不是真源。
 
 ---
 
@@ -620,10 +655,12 @@ python scripts/check_pdf.py report.pdf --images 2
 ### 遇到问题时的固定动作
 
 ```
+0. 先跑 scripts/sync_skill.py --check   → 确认你读到的是最新版规则（有漂移先 --deploy）
 1. 先跑 scripts/check_setup.py           → 90% 的问题这一步就能定位
 2. 按症状查 references/troubleshooting.md → 里面有"症状 → 诊断 → 修复"决策树
 3. 修完 → 在 references/CHANGELOG.md 追加一条记录
 4. 如果问题不在已知清单里 → 修完后务必把它补进 troubleshooting.md
+5. 改的是真源 → 收尾跑 scripts/sync_skill.py --deploy，把改动送到各客户端
 ```
 
 ### 按需求选文件（改哪里）
@@ -646,6 +683,7 @@ python scripts/check_pdf.py report.pdf --images 2
 | "以后按这次的教训来 / 记一下这次踩的坑" | `references/lessons.md`（追加新案例） | ❌ 不用 |
 | "MCP 报错了" | `references/troubleshooting.md` → 必要时 `assets/mcp-patch/` | ✅ 打补丁后要重启 |
 | "MCP 有新版了" | 见 `references/maintenance.md` 的升级流程 | ✅ |
+| "把改动同步到各客户端" | `python scripts/sync_skill.py --deploy`（从项目目录跑） | ✅ 副本变了要重载 skill |
 
 ### 改样式表后的必做自检（踩过坑）
 
@@ -689,9 +727,10 @@ print(pg.evaluate("() => getComputedStyle(document.querySelector('.verdict')).gr
 | `references/maintenance.md` | 维护流程：自检、升级、改名、验证清单 |
 | `references/mcp-tools.md` | MCP 工具参数速查与已知坑 |
 | `references/CHANGELOG.md` | **变更历史**：每次改动的原因与验证方式 |
-| `scripts/check_setup.py` | 前置条件自检（诊断入口） |
+| `scripts/check_setup.py` | 前置条件自检（诊断入口）：MCP 补丁 / 凭据 / 连通性 |
+| `scripts/sync_skill.py` | **真源 → 部署副本** 的漂移检查与同步（`--check` / `--deploy` / `--prune`） |
 | `scripts/fetch_video.py` | 自包含取数脚本（元数据 / 字幕 / 评论 / **评论图片与用户字段**） |
-| `scripts/fetch_comment_media.py` | **评论图片**：阈值决策 → 下载 → 联系表（需 PIL，用 envs/default 解释器） |
+| `scripts/fetch_comment_media.py` | **评论图片**：阈值决策 → 下载 → 联系表（需 PIL，**缺了会自动换解释器重跑**） |
 | `scripts/fetch_danmaku.py` | **弹幕**：秒级密度曲线 / 高重复句 / 疑似披露弹幕 |
 | `scripts/fetch_media.py` | **音视频流下载**（Range 探长 + 多线程分段 + `IncompleteRead.partial` 续传 + 字节校验；绕开 567、截断与单连接限速） |
 | `scripts/grab_frames.py` | **抽帧**（镜头检测 / 转写锚点 / 定点 / 字幕条）+ 联系表 + 索引表 |

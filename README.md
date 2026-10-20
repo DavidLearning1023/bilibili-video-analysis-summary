@@ -82,14 +82,22 @@ HTML 与 PDF 内容完全一致（PDF 由同一份 HTML 渲染，折叠区自动
 
 **前置**：Python 3.9+（核心脚本只用标准库）；Node.js ≥ 20 与一个 B站账号（仅当要读字幕、用 MCP 通道时需要）。
 
+**两层结构**：本仓库是**真源**（改这里）；各客户端的 skills 目录里放的是**部署副本**（脚本覆盖）。
+
 ```bash
-# 放进你所用的 Agent 的 skills 目录（WorkBuddy / Claude Code 等通用）
+# ① 克隆真源到你自己的项目目录
 git clone https://github.com/DavidLearning1023/bilibili-video-analysis-summary.git \
-  ~/.workbuddy/skills/bilibili-video-analysis-summary
-# Claude Code 用户改放 ~/.claude/skills/，macOS / Linux 同理
+  ~/projects/bilibili-video-analysis-summary
+
+# ② 部署到各客户端（自动发现已装的客户端：MiniMax Code / WorkBuddy / Claude Code）
+cd ~/projects/bilibili-video-analysis-summary
+python scripts/sync_skill.py --deploy
 ```
 
-或者下载 zip 解压到对应目录。**完整的分客户端安装对照、MCP 配置、补丁、自检流程见 [`INSTALL.md`](INSTALL.md)**。
+以后改完真源，用 `python scripts/sync_skill.py --check` 看漂移、`--deploy` 送出去。
+**方向永远是「本地真源 → 部署副本」，不从 GitHub 反向拉**——否则会把你还没推送的本地改动悄悄回滚掉。
+
+**完整的分客户端安装对照、MCP 配置、补丁、自检流程见 [`INSTALL.md`](INSTALL.md)**。
 
 > **推荐配置 MCP 通道**（字幕扫码登录、关键词定位、章节等附加能力，配一次全程受益；配套补丁已随仓库备好）；
 > 不装也能跑——`scripts/fetch_video.py` 自成兜底（元数据 + 评论无需登录），只是拿不到字幕。
@@ -145,6 +153,7 @@ Agent 会自己完成：判断视频类型 → 取元数据/字幕/评论 → �
 │   └── CHANGELOG.md          # 变更历史（含每次改动的验证方式）
 ├── scripts/
 │   ├── check_setup.py        # 前置条件自检（诊断入口）
+│   ├── sync_skill.py         # 真源 → 部署副本：漂移检查与同步
 │   ├── fetch_video.py        # 自包含取数：元数据 / 字幕 / 评论 / 评论图片与用户字段（仅标准库）
 │   ├── fetch_comment_media.py# 评论图片：阈值决策 → 下载 → 联系表（需 PIL）
 │   ├── fetch_danmaku.py      # 弹幕：秒级密度曲线 / 高重复句 / 疑似披露弹幕
