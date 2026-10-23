@@ -4,6 +4,11 @@ out/
 __pycache__/
 *.pyc
 
+# 跑一次分析就会在根目录落下的中间产物（抓帧、评论区配图、PDF 分页校验图）
+# 体积大且随视频变化，不进仓库；要留档请显式拷到 out/ 或自行备份
+/media/
+/._pdfcheck/
+
 # 样例只放 HTML（PDF 由 HTML 渲染而来，体积近 3MB/份，不随仓库分发）
 examples/*.pdf
 
