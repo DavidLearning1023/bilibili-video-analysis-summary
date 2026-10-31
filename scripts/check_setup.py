@@ -3,11 +3,12 @@
 """
 B站视频分析 —— 前置条件自检
 
-检查四件事：
+检查五件事：
   1. `bilibili-mcp` 是否安装在 npx 缓存中，版本是多少
   2. 三处关键补丁是否已打（412 风控 / 评论游标分页 / limit 上限）
   3. 凭据是否已配置（~/.bilibili-mcp/config.json）
   4. 本脚本自身的网络连通性（nav 接口）
+  5. 报告默认落盘目录是否已设置（未设置 = 首次使用，Agent 必须问用户一次）
 
 输出 [OK] / [WARN] / [FAIL] 三级，FAIL 项需要处理后再用 MCP 通道。
 
@@ -128,6 +129,25 @@ def main():
                 warn(f"B站 API 返回 HTTP {r.status}")
     except Exception as e:
         warn(f"B站 API 连通性检查失败：{e}")
+
+    # 5. 报告落盘目录（首次使用必须问一次并设置；不设也能用，只是每次都要问）
+    try:
+        sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+        import report_dir as rd  # noqa: E402  （同级脚本，延迟导入以免影响其它检查）
+
+        rd_path, rd_source = rd.resolve()
+        rd_state = rd.state_of(rd_source)
+        if rd_state == "ready":
+            ok(f"报告默认目录已设置：{rd_path}")
+            print(f"       来源 {rd_source}；报告按任务落在 <该目录>/<报告名>/ 子目录里")
+        elif rd_state == "ask":
+            ok("报告落盘：每次都问（用户已明确选择，不再提示设默认）")
+        else:
+            warn("还没有设置报告默认目录 —— 首次使用必须问用户一次存哪里")
+            print("       问完记住：python scripts/report_dir.py --set \"<目录>\"")
+            print("       用户想每次都选：python scripts/report_dir.py --unset")
+    except Exception as e:
+        warn(f"报告默认目录检查跳过：{e}")
 
     print()
     print("=" * 62)

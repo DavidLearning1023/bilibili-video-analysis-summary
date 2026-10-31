@@ -92,7 +92,7 @@ python scripts/check_setup.py
 | 需求 | 改哪个文件 | 注意 |
 |---|---|---|
 | 改生成文档的结构/章节/要求 | `references/output-template.md` | 纯 markdown，改完即生效，**不用重启** |
-| 改输出命名 / 落盘位置 / 文档大块划分 | `references/output-template.md` 第一、二节 + `SKILL.md` 第 2 步提示、第 5 步 ①②③、硬性规则 6/7 | 多处必须同时改，否则会打架 |
+| 改输出命名 / 落盘位置 / 文档大块划分 | `references/output-template.md` 第一、二节 + `SKILL.md` 第 2 步提示、第 5 步 ①②③、硬性规则 6/7 | 多处必须同时改，否则会打架。**改"默认落盘目录"不在这张表里**——那是本机偏好，跑 `python scripts/report_dir.py --set "<目录>"`，别动文档 |
 | 改 skill 名称 | 目录名 + `SKILL.md` 的 `name:` | **两者必须完全一致**，否则加载失败 |
 | 改触发时机 | `SKILL.md` 的 `description` + 「触发边界」一节 | 同时改，保持一致 |
 | 改取数逻辑 | `scripts/fetch_video.py` | 红线见下 |

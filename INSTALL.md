@@ -250,6 +250,7 @@ python <skill 目录>/scripts/check_setup.py
 | 全 `[OK]` | 就绪 | 直接开始用 |
 | 补丁 `[FAIL]` | 补丁未打/丢失 | 重跑上面的 `apply-patch.py`，再重启客户端 |
 | 凭据 `[WARN] 过期` | 登录态失效 | 重跑 `setup` 扫码 |
+| 报告默认目录 `[WARN] 还没有设置` | **首次使用**（正常状态，不是故障） | 问用户一次存哪里，`report_dir.py --set "<目录>"` 记住；不设也能用，只是每次都会问 |
 | 找不到包 | MCP 未装 | 重装，或忽略（走最简路径） |
 | API 连通性 `[WARN]` | 网络问题 | 检查网络 / 代理 |
 
@@ -305,7 +306,16 @@ python <skill 目录>/scripts/fetch_media.py BV1r2ey6EEh5 --video 1080 --out ./m
    > 议题级要的是横向广扫 + 交叉验证 + 信源地图。
 
 1. **跑自检**：`python <skill 目录>/scripts/check_setup.py`，把结果读给用户听（是 [OK] 还是需要处理的 [FAIL]）
-2. **按结果分档引导**：
+2. **问一次报告存哪里（首次必做，不能跳过）**：自检里「报告默认目录」若是 `[WARN] 还没有设置`，说明是首次使用。问用户：分析报告默认存到哪个目录？（给建议：项目的资产库、`文档/B站分析`、桌面等）——答完立刻执行
+
+   ```bash
+   python <skill 目录>/scripts/report_dir.py --set "<用户给的目录>"
+   ```
+
+   之后**每次都不再问**，报告按 `python scripts/report_dir.py --task "<报告名>"` 给出的 `<目录>/<报告名>/` 子目录落盘。
+   用户若说"以后每次问我" → `--unset`（写标记，之后不再劝他设默认）。
+
+3. **按结果分档引导**：
    - 全 `[OK]` → 宣告"环境就绪"，然后：
      - 用两三句话说明**能产出什么**（单文件 HTML 报告 + 同源 PDF；七部分结构；评论区聚类与三轴分布；AI 字幕纠偏……详见 `README.md`）
      - 给 1–2 个**可直接复制的使用示例**，例如：
@@ -314,8 +324,8 @@ python <skill 目录>/scripts/fetch_media.py BV1r2ey6EEh5 --video 1080 --out ./m
        ```
      - 询问他想先分析哪个视频
    - 有 `[FAIL]` → 按 `references/troubleshooting.md` 的症状表逐项处理；用户不想装 MCP 时，直接说明"最简路径"（只用 `fetch_video.py`）完全可用
-3. **顺手交代维护方式**：告诉用户本 skill 由 AI 维护、用户不需要手动改文件——想改结构/样式/类型指引，直接对 AI 说"把 X 改成 Y"即可（AI 按 `references/maintenance.md` 的速查表执行）
-4. **（仅当用户装了两个 B站 skill）** 一句话交代分工：议题级归 `bilibili-info-gathering`，
+4. **顺手交代维护方式**：告诉用户本 skill 由 AI 维护、用户不需要手动改文件——想改结构/样式/类型指引，直接对 AI 说"把 X 改成 Y"即可（AI 按 `references/maintenance.md` 的速查表执行）
+5. **（仅当用户装了两个 B站 skill）** 一句话交代分工：议题级归 `bilibili-info-gathering`，
    单条视频归本项目。**别让用户自己记这张表**——记住"他说的是议题就转走"。
 
 ---

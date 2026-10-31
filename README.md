@@ -138,7 +138,35 @@ git clone https://github.com/DavidLearning1023/bilibili-video-analysis-summary.g
 跑一次自检，带我配置好，然后教我用法      ← 首次使用推荐
 ```
 
-Agent 会自己完成：判断视频类型 → 取元数据/字幕/评论 → 按类型调整分析口径 → 产出 HTML + PDF 报告（落盘位置会先问你）。
+Agent 会自己完成：判断视频类型 → 取元数据/字幕/评论 → 按类型调整分析口径 → 产出 HTML + PDF 报告（落盘目录可固定，见下「报告存哪里、怎么归类」）。
+
+## 报告存哪里、怎么归类
+
+**第一次用会问你一次**「报告默认存到哪」，答完就记住，之后不再问。没配之前也能跑，只是每份都要问一遍。
+
+**归类方式：一份报告一个同名子目录**，不平铺在 `reports/` 根上：
+
+```
+<默认目录>/
+└── 20261031-《视频标题》分析总结/
+    ├── 20261031-《视频标题》分析总结.html
+    └── 20261031-《视频标题》分析总结.pdf
+```
+
+和姊妹项目 `bilibili-info-gathering/reports/` 一样按任务分目录，几十份报告也能按视频一眼找到。
+
+```bash
+python scripts/report_dir.py --set "D:\我的资产库\video-summary\reports"   # 改默认目录（不存在会自动创建）
+python scripts/report_dir.py --task "20261031-《标题》分析总结"            # 取该报告的子目录（自动创建）
+python scripts/report_dir.py --show                                      # 看现在生效的是哪一级、什么状态
+python scripts/report_dir.py --unset                                     # 回到「每次都问」
+python scripts/report_dir.py --reset                                     # 忘掉设置，下次重新问一遍
+```
+
+- 优先级：`--dir` > 环境变量 `BVA_REPORT_DIR` > `.local/report-dir.txt`（`--set` 写的那个）
+- 配置落在**本机** `.local/`（已 gitignore），不进仓库——公开仓库里不会出现你的磁盘路径
+- **换机后要重跑一次 `--set`**，否则会退回「首次引导 / 每次问」
+- 你在当次请求里说了位置（「放桌面」「存到 X 目录」）→ 永远以你说的为准
 
 ## 自定义与维护
 
@@ -149,7 +177,7 @@ Agent 会自己完成：判断视频类型 → 取元数据/字幕/评论 → �
 | "报告换个配色 / 字号调大" | `assets/template/report.css`（改完自动跑打印布局自检） |
 | "财经类视频多写一节 X" | `references/video-types.md` 对应类型卡 |
 | "报告加一节「历史类比」" | `references/output-template.md` + `SKILL.md` 硬性规则 |
-| "以后报告默认放 D:\我的报告" | `SKILL.md` 落盘约定 |
+| "以后报告默认放 D:\我的报告" | 跑一次 `python scripts/report_dir.py --set "D:\我的报告"`——写进本机 `.local/`（已 gitignore），改仓库文件不算 |
 | "取数脚本要支持 XX" | `scripts/fetch_video.py` |
 | "视频下不下来 / 抽帧太慢 / PDF 里有空白页" | `scripts/fetch_media.py` / `scripts/grab_frames.py` / `scripts/check_pdf.py` |
 | "这类视频该抽多密的帧" | `references/video-sampling.md` + `SKILL.md`「什么时候才该抽帧」 |
@@ -182,6 +210,7 @@ Agent 会自己完成：判断视频类型 → 取元数据/字幕/评论 → �
 │   ├── fetch_media.py        # 音视频流下载：Range 探长 + 分块 + 校验（绕开 567 与截断）
 │   ├── grab_frames.py        # 抽帧：转写锚点 / 镜头检测 / 定点 / 密集去重 / 字幕条
 │   ├── check_pdf.py          # PDF 版式自检：只把可疑页出图
+│   ├── report_dir.py         # 默认落盘目录：解析 / --set / --unset（本机配置，不入库）
 │   └── render_report.py      # 正文片段 + 模板 → 单文件 HTML（--pdf 出 PDF）
 └── assets/
     ├── template/             # report.css（固定样式表）+ shell.html
