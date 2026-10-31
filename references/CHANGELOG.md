@@ -5,6 +5,33 @@
 
 ---
 
+## 2026-10-31 晚 · 推送前审核：打包会把 `.local/` 打进 zip（已补规避方式）
+
+**类型**：文档修正（验证清单）+ 暴露一个分发风险
+
+**背景**：按 `maintenance.md` 第五节第 6 步跑打包校验时，发现`package_skill.py` 做的是**整目录 zip、不认 `.gitignore`**。
+本机产物：291 条目 / 34.5 MB，其中 `.git/` 171 项、`media/` 38 项、`._pdfcheck/` 21 项、**`.local/` 3 项**。
+`.local/report-dir.txt` 是维护者本机路径，`.local/migrate-manifest-20261031.json` 含 46 个报告的文件名与 sha1——
+这些**没有理由出现在任何人拿到的 zip 里**。校验本身通过（`quick_validate` 全过），问题在分发口径。
+
+**改了什么**
+
+| 文件 | 改动 |
+|---|---|
+| `references/maintenance.md` 第五节第 6 步 | 保留 `package_skill.py` 作为**校验**（顺带跑 `quick_validate`），补一条 ⚠️ 说明它是整目录 zip、不认 `.gitignore`，并给出**分发用 tracked-only 导出**：`git archive --format=zip -o ... HEAD` |
+
+**为什么不是改代码**：`package_skill.py` 是上游 `skill-creator` 的脚本，不在本仓库；改它等于给每个使用者埋一个私有分叉。
+用 `git archive` 一条命令达到同样效果，且与 GitHub 的 zip 下载口径一致（只含 tracked 文件）。
+
+**怎么验证的**
+
+| 用例 | 结果 |
+|---|---|
+| `package_skill.py` 打包 | 校验通过；zip 内 `.local/` 3 项、`.git/` 171 项（问题复现） |
+| 改后按清单用 `git archive` | **44 个文件 / 294 KB**；`.local` `.git` `media` `._pdfcheck` 命中数均为 **0**（对比：整目录打包 291 条目 / 34.5 MB） |
+
+---
+
 ## 2026-10-31 下午 · 报告按任务分目录 + 首次使用必须问一次并记住
 
 **类型**：行为调整（落盘结构 + 首次引导）+ 脚本能力扩展

@@ -180,7 +180,12 @@ python $S/scripts/check_console_encoding.py
 # 人 terminals 里跑通不算数——终端是 UTF-8，只有管道会触发。
 
 # 6) 打包校验
-python <skill-creator>/scripts/package_skill.py $S <输出目录>
+python <skill-creator>/scripts/package_skill.py $S <输出目录>   # 顺带跑 quick_validate
+#    ⚠️ 它是「整目录 zip」，**不认 .gitignore**：对工作目录打包会把 .git/（171 项）、
+#       media/、._pdfcheck/、.local/ 全塞进去（实测 34.5MB）。其中 .local/report-dir.txt
+#       是维护者本机路径，.local/ 下还有迁移清单——**绝不能进分发 zip**。
+#       所以：校验照跑，真要分发用 tracked-only 导出：
+git archive --format=zip -o /tmp/bilibili-video-analysis-summary.zip HEAD
 ```
 
 **凡改动涉及 MCP 包或 `mcp.json`，都必须提醒用户重启客户端**——运行中的进程不会热加载。
